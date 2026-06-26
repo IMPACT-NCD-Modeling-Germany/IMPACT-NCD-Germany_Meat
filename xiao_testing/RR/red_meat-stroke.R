@@ -1,0 +1,65 @@
+---
+  xps_name: unprocessed red meat
+outcome: stroke
+lag: 5 # TBD!
+distribution: lognormal
+source: DOI:10.1080/10408398.2017.1392288; Supplemental Table 23b
+notes:
+  - RR per 100g/day
+- Ideal intake: 0-200 according to GBD 2021 and GBD 2019
+apply_rr_extra_fn: >
+  function(sp) {
+    if (!inherits(sp, 'SynthPop')) stop('Argument sp needs to be a SynthPop object.')
+    sp$pop[, red_meat_rr := clamp(red_meat_rr^((red_meat - self$get_ideal_xps_lvl(sp$mc_aggr)) / 100), 1, 20)]
+  }
+ideal_xps_lvl_fn: >
+  function(design_) { # from:
+    if (!inherits(design_, 'Design')) stop('Argument design needs to be a Design object.')
+    save.seed <- get('.Random.seed', .GlobalEnv)
+    set.seed(851747L) # Same for stroke, CHD & T2DM
+    res <- sample(x = 0:200, size = design$sim_prm$iteration_n_max, replace = TRUE)
+    assign('.Random.seed', save.seed, .GlobalEnv)
+    res
+  }
+---
+  agegroup,sex,rr,ci_rr
+<1,men,1,1
+01-04,men,1,1
+05-09,men,1,1
+10-14,men,1,1
+15-19,men,1,1
+20-24,men,1,1
+25-29,men,1.11,1.20
+30-34,men,1.11,1.20
+35-39,men,1.11,1.20
+40-44,men,1.11,1.20
+45-49,men,1.11,1.20
+50-54,men,1.11,1.20
+55-59,men,1.11,1.20
+60-64,men,1.11,1.20
+65-69,men,1.11,1.20
+70-74,men,1.11,1.20
+75-79,men,1.11,1.20
+80-84,men,1.11,1.20
+85-89,men,1.11,1.20
+90+,men,1.11,1.20
+<1,women,1,1
+01-04,women,1,1
+05-09,women,1,1
+10-14,women,1,1
+15-19,women,1,1
+20-24,women,1,1
+25-29,women,1.12, 1.21
+30-34,women,1.12, 1.21
+35-39,women,1.12, 1.21
+40-44,women,1.12, 1.21
+45-49,women,1.12, 1.21
+50-54,women,1.12, 1.21
+55-59,women,1.12, 1.21
+60-64,women,1.12, 1.21
+65-69,women,1.12, 1.21
+70-74,women,1.12, 1.21
+75-79,women,1.12, 1.21
+80-84,women,1.12, 1.21
+85-89,women,1.12, 1.21
+90+,women,1.12, 1.21
