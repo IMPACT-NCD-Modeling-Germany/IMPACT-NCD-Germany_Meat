@@ -71,7 +71,7 @@
       stop("Missing elasticity or price-change value.")
     }
     
-    demand_change_tbl <- x[, .(rel_change = mean(elasticity_mc * price_change)), by = quantity]
+    demand_change_tbl <- x[, .(rel_change = sum(elasticity_mc * price_change)), by = quantity]
     
     ## Convert to named vector for convenient lookup
     rel_change <- setNames(
