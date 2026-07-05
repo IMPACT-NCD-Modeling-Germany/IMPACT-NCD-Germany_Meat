@@ -1,116 +1,307 @@
   #---------------------------------------------------------------------------
   # Purpose
-  # Policy scenarios set-up
+  # Policy scenario set-up for German meat-tax modelling
+  #
   # Steps:
-  # 1. Create meat price elasticity table with uncertainty: "/xiao_testing/uncertainty_price_elasticity_meat"
-  # 2. Create price change table
-  # 3. Create tax pass-through table with uncertainty: used Karls SSB pass-through
-  # 4. Implement and calculate new consumption and consumption changes
+  # 1. Create meat price elasticity table without uncertainty: "/xiao_testing/evs_price_elasticity_table.fst"
+  # 2. Read tax pass-through table with uncertainty: used Karls SSB pass-through
+  # 3. Create price change table and demand change table: red meat based on weighted average of beef and pork
+  # 4. Calculate consumption changes delta_xps
+  #
+  # Scenarios:
+  #   sc0: No  intervention
+  #   sc1: VAT increase from 7% to 19% on red and processed meat
+  #   sc2: GHGE-based excise tax using EUR 345/t CO2eq
+  #   sc3: GHGE-based excise tax using EUR 55/t CO2eq
+  #
+  # XIAO's Questions
+  # Q1). Assuming immediate change + stable & sustained relative consumption over time 
+  # --> good? Or apply e.g., no effect after year 5?
+  # Q2). delta_xps as curr_xps - new_xps, where negative means increase
+  # --> Why not new_xps - curr_xps so that negative = reduction?
+  # Q3). Decided to use EVS 2018 PE table which has no SE
+  # --> how to deal with mc?
+  # Q4). Did not use new_xps but created directly delta_xps and replaced curr_xps after year 0 with curr_xps - delta_xps
   #---------------------------------------------------------------------------
-
-  #### Scenarios for German meat tax modelling ------------------------------------
+  
+  library(data.table)
+  library(fst)
+  
+  #### Scenarios for German meat-tax modelling ---------------------------------
   
   scenario_0_fn <- function(sp) {
     
-    sp$pop[, c("rm_delta_xps", "pm_delta_xps",
-               "wm_delta_xps", "fish_delta_xps"
-               ) := 0] 
+    sp$pop[, c("red_meat_delta_xps",
+               "processed_meat_delta_xps",
+               "white_meat_delta_xps",
+               "fish_delta_xps") := 0]
     
   }
   
-  ### Scenario 1 - VAT increase from 7% to 19% on red and processed meat combined ----
+  ### Scenario 1 - VAT increase from 7% to 19% on red and processed meat --------
   
-  scenario_A_vat_meat_fn <- function(sp) {
+  scenario_1_fn <- function(sp) {
     
+    # Set scenario variables
     old_vat <- 0.07
     new_vat <- 0.19
-    products <- c("red_meat",
-                 "processed_meat",
-                 "white_meat",
-                 "fish")
     
-    # --- 1. Read pass-through ---
-    pth_tbl <- read_fst(
-      "./xiao_testing/tax_pass_through.fst",
-      as.data.table = TRUE
-    )
+    # NAKO weighted red-meat composition
+    prop_beef <- 0.513
+    prop_pork <- 0.487
     
-    pass_through <- as.numeric(
-      pth_tbl[mc == sp$mc_aggr, tax_pth]
-    )
-
-    # --- 2. Calculate VAT-induced consumer-price change ---
+    # Define tax targets and substitutes of interest
+    products <- c("beef", "pork", "processed_meat", "white_meat", "fish")
+    
+    tbl <- read_fst("./xiao_testing/tax_pass_through.fst", as.data.table = TRUE)
+    pass_through <- as.numeric(tbl[mc == sp$mc_aggr, tax_pth])
+    
+    # VAT-induced consumer-price change
     vat_price_change <- ((1 + new_vat) / (1 + old_vat) - 1) * pass_through
     
-    price_change_vec <- c(
-      red_meat = vat_price_change,
-      processed_meat = vat_price_change
-    )
-    
-    # --- 3. Read elasticity table ---
-    elasticity_mc <- read_fst(
-      "./xiao_testing/meat_price_elasticities_mc.fst",
-      as.data.table = TRUE
-    )
-    
-    # --- 4. Calculate consumption changes ---
     price_change_tbl <- data.table(
-      price = names(price_change_vec),
-      price_change = as.numeric(price_change_vec)
+      price = c("beef", "pork", "processed_meat"),
+      price_change = c(vat_price_change,
+                       vat_price_change,
+                       vat_price_change)
     )
     
-    x <- elasticity_mc[
-      mc == sp$mc_aggr &
-        quantity %in% products &
-        price %in% names(price_change_vec)
-    ]
+    # Calculate demand change
+    tbl <- read_fst("./xiao_testing/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
     
+    x <- tbl[quantity %in% products & price %in% price_change_tbl$price]
     x <- price_change_tbl[x, on = "price"]
     
-    if (x[, anyNA(elasticity_mc)] || x[, anyNA(price_change)]) {
+    if (x[, anyNA(elasticity)] || x[, anyNA(price_change)]) {
       stop("Missing elasticity or price-change value.")
     }
     
-    demand_change_tbl <- x[, .(rel_change = sum(elasticity_mc * price_change)), by = quantity]
+    demand_change_tbl <- x[, .(rel_change = sum(elasticity * price_change)), by = quantity]
     
-    ## Convert to named vector for convenient lookup
-    rel_change <- setNames(
+    rel_change_evs <- setNames(
       demand_change_tbl$rel_change,
       demand_change_tbl$quantity
     )
     
-    # --- 5. Calculate new consumption ---
-    sp$pop[, red_meat_new_xps :=
-             pmax(0, red_meat_curr_xps * (1 + rel_change["red_meat"]))]
+    red_meat_rel_change <- prop_beef * rel_change_evs["beef"] +
+      prop_pork * rel_change_evs["pork"]
     
-    sp$pop[, processed_meat_new_xps :=
-             pmax(0, processed_meat_curr_xps * (1 + rel_change["processed_meat"]))]
+    rel_change <- c(
+      red_meat       = as.numeric(red_meat_rel_change),
+      processed_meat = as.numeric(rel_change_evs["processed_meat"]),
+      white_meat     = as.numeric(rel_change_evs["white_meat"]),
+      fish           = as.numeric(rel_change_evs["fish"])
+    )
     
-    sp$pop[, white_meat_new_xps :=
-             pmax(0, white_meat_curr_xps * (1 + rel_change["white_meat"]))]
+    if (anyNA(rel_change)) {
+      stop("Missing relative demand-change value.")
+    }
     
-    sp$pop[, fish_new_xps :=
-             pmax(0, fish_curr_xps * (1 + rel_change["fish"]))]
+    # Change in meat consumption after tax: negative = increase, positive = reduction!
+    sp$pop[, red_meat_delta_xps :=
+             red_meat_curr_xps - pmax(0, red_meat_curr_xps * (1 + rel_change["red_meat"]))]
+    sp$pop[, processed_meat_delta_xps :=
+             processed_meat_curr_xps - pmax(0, processed_meat_curr_xps * (1 + rel_change["processed_meat"]))]
+    sp$pop[, white_meat_delta_xps :=
+             white_meat_curr_xps - pmax(0, white_meat_curr_xps * (1 + rel_change["white_meat"]))]
+    sp$pop[, fish_delta_xps :=
+             fish_curr_xps - pmax(0, fish_curr_xps * (1 + rel_change["fish"]))]
     
-    ## Positive delta = reduction; negative delta = increase
-    # Xiao: Why not new_xps - curr_xps, so that negative means clearly reduction?
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           red_meat_curr_xps := pmax(0, red_meat_curr_xps - red_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           processed_meat_curr_xps := pmax(0, processed_meat_curr_xps - processed_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           white_meat_curr_xps := pmax(0, white_meat_curr_xps - white_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
     
-    sp$pop[, red_meat_delta_xps := red_meat_curr_xps - red_meat_new_xps]
-    sp$pop[, processed_meat_delta_xps := processed_meat_curr_xps - processed_meat_new_xps]
-    sp$pop[, white_meat_delta_xps := white_meat_curr_xps - white_meat_new_xps]
-    sp$pop[, fish_delta_xps := fish_curr_xps - fish_new_xps]
+  }
+  
+  ### Scenario 2 - GHGE-based excise tax using EUR 345/t CO2eq ------------------
+  
+  scenario_2_fn <- function(sp) {
     
-    int_year <- IMPACTncd$design$sim_prm$init_year_intv - 2000
+    # Set scenario variables (UBA 2025)
+    co2_price <- 345
     
-    sp$pop[year > int_year,`:=`(
-      red_meat_curr_xps = red_meat_new_xps,
-      processed_meat_curr_xps = processed_meat_new_xps,
-      white_meat_curr_xps = white_meat_new_xps,
-      fish_curr_xps = fish_new_xps)
-      ]
+    # Carbon emissions: kg CO2eq per kg edible meat (IFEU)
+    co2eq_beef <- 13.4
+    co2eq_pork <- 3.9
+    co2eq_pm   <- 8.0
     
-    sp$pop[, c("red_meat_new_xps",
-               "processed_meat_new_xps",
-               "white_meat_new_xps",
-               "fish_new_xps") := NULL]
+    # Retail prices: EUR/kg, 2025 euros (Thünen Institut)
+    retail_price_beef <- 12.65
+    retail_price_pork <- 8.64
+    retail_price_pm   <- 11.98
+    
+    # NAKO weighted red-meat composition
+    prop_beef <- 0.513
+    prop_pork <- 0.487
+    
+    # Define tax targets and substitutes of interest
+    products <- c("beef", "pork", "processed_meat", "white_meat", "fish")
+    
+    tbl <- read_fst("./xiao_testing/tax_pass_through.fst", as.data.table = TRUE)
+    pass_through <- as.numeric(tbl[mc == sp$mc_aggr, tax_pth])
+    
+    # Excise tax in EUR/kg product
+    tax_beef <- co2eq_beef * co2_price / 1000
+    tax_pork <- co2eq_pork * co2_price / 1000
+    tax_pm   <- co2eq_pm   * co2_price / 1000
+    
+    # Tax-induced consumer-price change
+    price_change_tbl <- data.table(
+      price = c("beef", "pork", "processed_meat"),
+      price_change = c(
+        tax_beef * pass_through / retail_price_beef,
+        tax_pork * pass_through / retail_price_pork,
+        tax_pm   * pass_through / retail_price_pm
+      )
+    )
+    
+    # Calculate demand change
+    tbl <- read_fst("./xiao_testing/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
+
+    x <- tbl[quantity %in% products & price %in% price_change_tbl$price]
+    x <- price_change_tbl[x, on = "price"]
+    
+    if (x[, anyNA(elasticity)] || x[, anyNA(price_change)]) {
+      stop("Missing elasticity or price-change value.")
+    }
+    
+    demand_change_tbl <- x[, .(rel_change = sum(elasticity * price_change)), by = quantity]
+    
+    rel_change_evs <- setNames(
+      demand_change_tbl$rel_change,
+      demand_change_tbl$quantity
+    )
+    
+    red_meat_rel_change <- prop_beef * rel_change_evs["beef"] +
+      prop_pork * rel_change_evs["pork"]
+    
+    rel_change <- c(
+      red_meat       = as.numeric(red_meat_rel_change),
+      processed_meat = as.numeric(rel_change_evs["processed_meat"]),
+      white_meat     = as.numeric(rel_change_evs["white_meat"]),
+      fish           = as.numeric(rel_change_evs["fish"])
+    )
+    
+    if (anyNA(rel_change)) {
+      stop("Missing relative demand-change value.")
+    }
+    
+    # Change in meat consumption after tax
+    sp$pop[, red_meat_delta_xps :=
+             red_meat_curr_xps - pmax(0, red_meat_curr_xps * (1 + rel_change["red_meat"]))]
+    sp$pop[, processed_meat_delta_xps :=
+             processed_meat_curr_xps - pmax(0, processed_meat_curr_xps * (1 + rel_change["processed_meat"]))]
+    sp$pop[, white_meat_delta_xps :=
+             white_meat_curr_xps - pmax(0, white_meat_curr_xps * (1 + rel_change["white_meat"]))]
+    sp$pop[, fish_delta_xps :=
+             fish_curr_xps - pmax(0, fish_curr_xps * (1 + rel_change["fish"]))]
+    
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           red_meat_curr_xps := pmax(0, red_meat_curr_xps - red_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           processed_meat_curr_xps := pmax(0, processed_meat_curr_xps - processed_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           white_meat_curr_xps := pmax(0, white_meat_curr_xps - white_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
+    
+  }
+  
+  ### Scenario 3 - GHGE-based excise tax using EUR 55/t CO2eq -------------------
+  
+  scenario_3_fn <- function(sp) {
+    
+    # Set scenario variables (nEHS Emissionshandelspreis Deutschland)
+    co2_price <- 55
+    
+    # Carbon emissions: kg CO2eq per kg edible meat
+    co2eq_beef <- 13.4
+    co2eq_pork <- 3.9
+    co2eq_pm   <- 8.0
+    
+    # Retail prices: EUR/kg, 2025 euros
+    retail_price_beef <- 12.65
+    retail_price_pork <- 8.64
+    retail_price_pm   <- 11.98
+    
+    # NAKO weighted red-meat composition
+    prop_beef <- 0.513
+    prop_pork <- 0.487
+    
+    # Define tax targets and substitutes of interest
+    products <- c("beef", "pork", "processed_meat", "white_meat", "fish")
+    
+    tbl <- read_fst("./xiao_testing/tax_pass_through.fst", as.data.table = TRUE)
+    pass_through <- as.numeric(tbl[mc == sp$mc_aggr, tax_pth])
+    
+    # Excise tax in EUR/kg product
+    tax_beef <- co2eq_beef * co2_price / 1000
+    tax_pork <- co2eq_pork * co2_price / 1000
+    tax_pm   <- co2eq_pm   * co2_price / 1000
+    
+    # Tax-induced consumer-price change
+    price_change_tbl <- data.table(
+      price = c("beef", "pork", "processed_meat"),
+      price_change = c(
+        tax_beef * pass_through / retail_price_beef,
+        tax_pork * pass_through / retail_price_pork,
+        tax_pm   * pass_through / retail_price_pm
+      )
+    )
+    
+    # Calculate demand change
+    tbl <- read_fst("./xiao_testing/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
+    
+    x <- tbl[quantity %in% products & price %in% price_change_tbl$price]
+    x <- price_change_tbl[x, on = "price"]
+    
+    if (x[, anyNA(elasticity)] || x[, anyNA(price_change)]) {
+      stop("Missing elasticity or price-change value.")
+    }
+    
+    demand_change_tbl <- x[, .(rel_change = sum(elasticity * price_change)), by = quantity]
+    
+    rel_change_evs <- setNames(
+      demand_change_tbl$rel_change,
+      demand_change_tbl$quantity
+    )
+    
+    red_meat_rel_change <- prop_beef * rel_change_evs["beef"] +
+      prop_pork * rel_change_evs["pork"]
+    
+    rel_change <- c(
+      red_meat       = as.numeric(red_meat_rel_change),
+      processed_meat = as.numeric(rel_change_evs["processed_meat"]),
+      white_meat     = as.numeric(rel_change_evs["white_meat"]),
+      fish           = as.numeric(rel_change_evs["fish"])
+    )
+    
+    if (anyNA(rel_change)) {
+      stop("Missing relative demand-change value.")
+    }
+    
+    # Change in meat and fish consumption after tax #
+    sp$pop[, red_meat_delta_xps :=
+             red_meat_curr_xps - pmax(0, red_meat_curr_xps * (1 + rel_change["red_meat"]))]
+    sp$pop[, processed_meat_delta_xps :=
+             processed_meat_curr_xps - pmax(0, processed_meat_curr_xps * (1 + rel_change["processed_meat"]))]
+    sp$pop[, white_meat_delta_xps :=
+             white_meat_curr_xps - pmax(0, white_meat_curr_xps * (1 + rel_change["white_meat"]))]
+    sp$pop[, fish_delta_xps :=
+             fish_curr_xps - pmax(0, fish_curr_xps * (1 + rel_change["fish"]))]
+    
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           red_meat_curr_xps := pmax(0, red_meat_curr_xps - red_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           processed_meat_curr_xps := pmax(0, processed_meat_curr_xps - processed_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           white_meat_curr_xps := pmax(0, white_meat_curr_xps - white_meat_delta_xps)]
+    sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+           fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
+    
   }
