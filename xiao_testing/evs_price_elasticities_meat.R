@@ -1,5 +1,6 @@
   # Products in the new EVS 2018 elasticity matrix
-# No 95% 
+  # Currently No 95% CI
+
   products <- c("beef", "pork", "processed_meat", "white_meat", "fish")
   
   evs_elasticity_tbl <- CJ(
@@ -22,3 +23,5 @@
   
   evs_elasticity_tbl[, elasticity := est_mat[cbind(quantity, price)]]
   evs_elasticity_tbl[, elasticity_type := fifelse(quantity == price, "own_price", "cross_price")]
+  
+  write_fst(evs_elasticity_tbl,"./xiao_testing/evs_meat_price_elasticity_table.fst", compress = 100)
