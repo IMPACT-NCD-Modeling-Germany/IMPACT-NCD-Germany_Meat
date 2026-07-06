@@ -15,12 +15,11 @@ set.seed(1337)
 new_runs <- TRUE
 new_export <- TRUE
 
-
 if(new_runs){
   
   # Create batches for batched simulation
   batch_size <- 5
-  iterations <- 10
+  iterations <- 50
   first_iteration <- 1
   batches <- split(seq(first_iteration, iterations + first_iteration - 1),
                    f = findInterval(seq(first_iteration, iterations + first_iteration - 1),
@@ -36,7 +35,7 @@ if(new_runs){
 analysis_name <- "Meat_Tax" 
 ### create a folder to store all the output of this analysis
 
-IMPACTncd <- Simulation$new("./inputs/sim_design.yaml", analysis_name)
+IMPACTncd <- Simulation$new("./inputs/sim_design_meat_test.yaml", analysis_name)
 
 # TODO load scenario script here   
 source("./auxil/scenarios_GLP_uncertain_sc0.R") 

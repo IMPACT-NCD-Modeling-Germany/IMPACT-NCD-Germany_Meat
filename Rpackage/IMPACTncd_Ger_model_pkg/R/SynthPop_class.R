@@ -940,7 +940,7 @@ SynthPop <-
             #dt <- merge(dt, tbl, by = c(intersect(names(dt), names(tbl))))
             
             # Xiao: New function to get intake values based on ranks for two-part model
-            dt[, processed_meat := get_twopm_quantile( # Xiao: naming fine? Or "processed_meat"?
+            dt[, processed_meat := get_twopm_quantile(
               p = rank_processed_meat,
               param_dt = .SD,
               qfun_nam = "qBCPE",

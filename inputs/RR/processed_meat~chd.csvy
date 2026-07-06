@@ -17,7 +17,7 @@ ideal_xps_lvl_fn: > # Define ideal intake with uncertainty [0, 15]
     if (!inherits(design_, 'Design')) stop('Argument design needs to be a Design object.')
     save.seed <- get('.Random.seed', .GlobalEnv)
     set.seed(851747L) # Same for stroke, CHD & T2DM
-    res <- runif(size = design$sim_prm$iteration_n_max, min = 0, max = 15)
+    res <- runif(design$sim_prm$iteration_n_max, min = 0, max = 15)
     assign('.Random.seed', save.seed, .GlobalEnv)
     res
   }
