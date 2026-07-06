@@ -1,12 +1,12 @@
 ---
-  xps_name: red meat
+xps_name: red_meat
 outcome: chd
 lag: 5 # TBD!
 distribution: lognormal
 source: DOI:10.1016/S0140-6736(20)30925-9, GBD 2019
 notes:
   - RR per 100g/day
-- Ideal intake: 0-200 according to GBD 2021 and GBD 2019
+  - Ideal intake: 0-200 according to GBD 2021 and GBD 2019
 apply_rr_extra_fn: >
   function(sp) {
     if (!inherits(sp, 'SynthPop')) stop('Argument sp needs to be a SynthPop object.')
@@ -17,12 +17,12 @@ ideal_xps_lvl_fn: >
     if (!inherits(design_, 'Design')) stop('Argument design needs to be a Design object.')
     save.seed <- get('.Random.seed', .GlobalEnv)
     set.seed(851747L) # Same for stroke, CHD & T2DM
-    res <- sample(x = 0:200, size = design$sim_prm$iteration_n_max, replace = TRUE)
+    res <- runif(design$sim_prm$iteration_n_max, min = 0, max = 200)
     assign('.Random.seed', save.seed, .GlobalEnv)
     res
   }
 ---
-  agegroup,sex,rr,ci_rr
+agegroup,sex,rr,ci_rr
 <1,men,1,1
 01-04,men,1,1
 05-09,men,1,1

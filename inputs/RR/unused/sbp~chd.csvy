@@ -16,7 +16,7 @@ ideal_xps_lvl_fn: >
     save.seed <- get('.Random.seed', .GlobalEnv)
     set.seed(651747L) # Same for stroke and CHD
     res <- rnorm(design$sim_prm$iteration_n_max, mean = runif(design$sim_prm$iteration_n_max, 110, 115), sd = runif(design$sim_prm$iteration_n_max, 4, 6))
-    assign('.Randon.seed', save.seed, .GlobalEnv)
+    assign('.Random.seed', save.seed, .GlobalEnv)
     res
     }
 ---
@@ -40,8 +40,7 @@ agegroup,sex,rr,ci_rr
 75-79,men,0.62,0.64
 80-84,men,0.69,0.73
 85-89,men,0.69,0.73
-90-94,men,1,1
-95-99,men,1,1
+90+,men,1,1
 <1,women,1,1
 01-04,women,1,1
 05-09,women,1,1
@@ -61,5 +60,4 @@ agegroup,sex,rr,ci_rr
 75-79,women,0.55,0.58
 80-84,women,0.64,0.68
 85-89,women,0.64,0.68
-90-94,women,1,1
-95-99,women,1,1
+90+,women,1,1
