@@ -1,4 +1,4 @@
-analysis_name: GLP1
+analysis_name: Meat
 iteration_n: 1
 iteration_n_final: 2
 clusternumber: 10 # explicit parallelisation
@@ -8,7 +8,7 @@ logs: yes
 export_xps: yes
 keep_lifecourse: yes
 export_PARF: no
-'n': 250000
+'n': 1000
 n_synthpop_aggregation: 2 # number of synthpops to aggregate together
 # n_primers: 10 # better be some multiple of n_synthpop_aggregation
 init_year_long: 2013 # 2008 to 2020 but be careful with max lags
@@ -106,8 +106,8 @@ kismet: yes
 validation: no # or yes. Note, no yes/no
 max_prvl_for_outputs: 2 # duration 1 is incidence and 2 is prevalence
 iteration_n_max: 1000
-output_dir: /mnt/Storage_1/IMPACT_Storage/GLP1/outputs
-synthpop_dir: /mnt/Storage_1/IMPACT_Storage/GLP1/inputs/synthpop
+output_dir: /mnt/Storage_1/IMPACT_Storage/Meat/outputs
+synthpop_dir: /mnt/Storage_1/IMPACT_Storage/Meat/inputs/synthpop
 scenarios: ''
 cols_for_output:
 - pid # NEED TO be 1st (perhaps not anymore)
@@ -116,25 +116,20 @@ cols_for_output:
 - age
 - sex
 - wt
-- bmi_curr_xps
-- sbp_curr_xps
-- tchol_curr_xps
-- bmi_delta
-- sbp_delta
-- tchol_delta
-- anchor_year
-- trtm_theo
-- uptake_group
+- processed_meat_curr_xps
+- red_meat_curr_xps
+- white_meat_curr_xps
+- fish_curr_xps
 strata_for_output:
 - scenario
 - year
 - agegrp
 - sex
-- uptake_group
 exposures:
 - age
 - sex
-- bmi
-- sbp
-- tchol
+- processed_meat
+- red_meat
+- white_meat
+- fish
 

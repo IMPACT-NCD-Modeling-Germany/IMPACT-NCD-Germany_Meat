@@ -1,5 +1,5 @@
 ---
-  xps_name: processed meat
+xps_name: processed_meat
 outcome: stroke
 lag: 5 # TBD!
 distribution: lognormal
@@ -7,7 +7,7 @@ source: DOI:10.1080/10408398.2017.1392288; Supplemental Table 24b
 notes:
   - TBD: Sex-specific RR not extracted as not significant
   - RR per 50g/day
-- Ideal intake: 0-15 according to GBD 2021, GBD 2019, GBD 2017 + FBDG recommendations
+  - Ideal intake: 0-15 according to GBD 2021, GBD 2019, GBD 2017 + FBDG recommendations
 apply_rr_extra_fn: >
   function(sp) {
     if (!inherits(sp, 'SynthPop')) stop('Argument sp needs to be a SynthPop object.')
@@ -18,12 +18,12 @@ ideal_xps_lvl_fn: > # Define ideal intake with uncertainty [0, 15]
     if (!inherits(design_, 'Design')) stop('Argument design needs to be a Design object.')
     save.seed <- get('.Random.seed', .GlobalEnv)
     set.seed(851747L) # Same for stroke, CHD & T2DM
-    res <-  sample(x = 0:15, size = design$sim_prm$iteration_n_max, replace = TRUE)
+    res <- runif(design$sim_prm$iteration_n_max, min = 0, max = 15)
     assign('.Random.seed', save.seed, .GlobalEnv)
     res
   }
 ---
-  agegroup,sex,rr,ci_rr
+agegroup,sex,rr,ci_rr
 <1,men,1,1
 01-04,men,1,1
 05-09,men,1,1
