@@ -221,7 +221,7 @@ Disease <-
       #' @return The PARF data.table if it was created, otherwise `NULL`.
 
       gen_parf_files = function(design_ = design, diseases_ = diseases,
-                                popsize = 70000, check = design_$sim_prm$logs, #TODO: Right pop size?
+                                popsize = 5000, check = design_$sim_prm$logs, #TODO: Right pop size?
                                 keep_intermediate_file = TRUE) {
 
         if ((is.numeric(self$meta$incidence$type) &&
@@ -399,7 +399,7 @@ Disease <-
 
       gen_parf = function(sp = sp, design_ = design, diseases_ = diseases,
                           scenario_p_zero = 1, perc_change_m0 = 1, 
-                          popsize = 70000, check = design_$sim_prm$logs, #TODO: Right pop size?
+                          popsize = 5000, check = design_$sim_prm$logs, #TODO: Right pop size?
                           keep_intermediate_file = TRUE) {
 
         # TODO add logic to delete the intermediate synthpop file outside this
@@ -2034,7 +2034,7 @@ Disease <-
 
           cm_mean <- as.matrix(
             read_fst(
-              "./inputs/exposure_distributions/exposure_corr.fst",
+              "./inputs/exposure_distributions/exposure_corr_meat.fst",
               as.data.table = TRUE
             ),
             rownames = "rn"
@@ -2054,12 +2054,14 @@ Disease <-
           #  rank_mtx[, "juice_r"] * 0.95 / 0.999
           
           rank_mtx <- rank_mtx * 0.999
-          rank_mtx[, "bmi_r"] <-
-            rank_mtx[, "bmi_r"] * 0.90 / 0.999
-          rank_mtx[, "sbp_r"] <-
-            rank_mtx[, "sbp_r"] * 0.95 / 0.999
-          rank_mtx[, "tchol_r"] <-
-            rank_mtx[, "tchol_r"] * 0.95 / 0.999
+          rank_mtx[, "processed_meat_r"] <-
+            rank_mtx[, "processed_meat_r"] * 0.95 / 0.999
+          rank_mtx[, "red_meat_r"] <-
+            rank_mtx[, "red_meat_r"] * 0.95 / 0.999
+          rank_mtx[, "white_meat_r"] <-
+            rank_mtx[, "white_meat_r"] * 0.95 / 0.999
+          rank_mtx[, "fish_r"] <-
+            rank_mtx[, "fish_r"] * 0.95 / 0.999
 
           # sum((cor(rank_mtx) - cm_mean) ^ 2)
 
@@ -2073,9 +2075,10 @@ Disease <-
           #) := rank_mtx]
           
           ff[, c(
-            "rank_bmi",
-            "rank_sbp",
-            "rank_tchol"
+            "rank_processed_meat",
+            "rank_red_meat",
+            "rank_white_meat",
+            "rank_fish"
           ) := rank_mtx]
           
           rm(rank_mtx)
@@ -2087,8 +2090,8 @@ Disease <-
             ff[age > 90L, age := 90L]
           }
 
-          # Generate sbp ----
-          xps <- c("sbp", "t2dm_prvl") # Jane: why is 't2dm_prvl' related here?
+          # Generate processed meat intake ----
+          xps <- c("processed_meat", "t2dm_prvl") # Jane: why is 't2dm_prvl' related here?
           if (any(xps %in% sapply(private$rr, `[[`, "name"))) {
             if (xps[[1]] %in% sapply(private$rr, `[[`, "name")) {
               lag <- private$rr[[paste0(xps[[1]], "~", self$name)]]$lag
@@ -2097,26 +2100,106 @@ Disease <-
             }
             ff[, year := year - lag]
 
-          tbl <-
-            read_fst("./inputs/exposure_distributions/sbp_table.fst", as.data.table = TRUE)
-
-          col_nam <-
-            setdiff(names(tbl), intersect(names(ff), names(tbl)))
-          #if (Sys.info()["sysname"] == "Linux") {
-          #  lookup_dt(ff, tbl, check_lookup_tbl_validity = FALSE) #TODO: lookup_dt
-          #} else {
+            tbl <-
+              read_fst("./inputs/exposure_distributions/processed_meat_twopart_parameter_table.fst",
+                       as.data.table = TRUE)
+            
+            col_nam <-
+              setdiff(names(tbl), intersect(names(ff), names(tbl)))
+            #if (Sys.info()["sysname"] == "Linux") {
+            #lookup_dt(dt, tbl, check_lookup_tbl_validity = FALSE)
+            #} else {
             ff <- absorb_dt(ff, tbl)
-          #}
-          ff[, sbp_curr_xps := my_qBCPEo(rank_sbp, mu, sigma, nu, tau, n_cpu = design_$sim_prm$n_cpu)]
-          ff[sbp_curr_xps > 500, sbp_curr_xps := 500] #Truncate SBP to avoid unrealistic values.
+            #}
+            #dt <- merge(dt, tbl, by = c(intersect(names(dt), names(tbl))))
+            
+            ff[, processed_meat_curr_xps := get_twopm_quantile(
+              p = rank_processed_meat,
+              param_dt = .SD,
+              qfun_nam = "qBCPE",
+              pos_pars = setdiff(col_nam, "xi0"), # parameters for positive distribution only
+              xi0_col = "xi0", # parameter for binary model (prob of below cut-off: yes/no)
+              cut_con = 3L), .SDcols = col_nam]
+            
+            ff[, (col_nam) := NULL]
+            ff[, rank_processed_meat := NULL]
+            
+            ff[, year := year + lag]
+          }
+
+          # Generate red meat intake ----
+          xps <- c("red_meat", "t2dm_prvl")
+          if (any(xps %in% sapply(private$rr, `[[`, "name"))) {
+            if (xps[[1]] %in% sapply(private$rr, `[[`, "name")) {
+              lag <- private$rr[[paste0(xps[[1]], "~", self$name)]]$lag
+            } else {
+              lag <- 0L
+            }
+            ff[, year := year - lag]
+
+            tbl <-
+              read_fst("./inputs/exposure_distributions/red_meat_twopart_parameter_table.fst",
+                       as.data.table = TRUE)
+            
+            col_nam <-
+              setdiff(names(tbl), intersect(names(ff), names(tbl)))
+            #if (Sys.info()["sysname"] == "Linux") {
+            #  lookup_dt(dt, tbl, check_lookup_tbl_validity = FALSE)
+            #} else {
+            ff <- absorb_dt(ff, tbl)
+            #}
+            
+            ff[, red_meat_curr_xps := get_twopm_quantile(
+              p = rank_red_meat,
+              param_dt = .SD,
+              qfun_nam = "qBCTo",
+              pos_pars = setdiff(col_nam, "xi0"),
+              xi0_col = "xi0",
+              cut_con = 3L), .SDcols = col_nam]
+            
+            ff[, (col_nam) := NULL]
+            ff[, rank_red_meat := NULL]
+            
+            ff[, year := year + lag]
+          }
+
+          # Generate white meat intake ----
+          xps <- c("white_meat", "t2dm_prvl")
+          if (any(xps %in% sapply(private$rr, `[[`, "name"))) {
+            if (xps[[1]] %in% sapply(private$rr, `[[`, "name")) {
+              lag <- private$rr[[paste0(xps[[1]], "~", self$name)]]$lag
+            } else {
+              lag <- 0L
+            }
+            ff[, year := year - lag]
+            
+            tbl <-
+              read_fst("./inputs/exposure_distributions/white_meat_twopart_parameter_table.fst",
+                       as.data.table = TRUE)
+            col_nam <-
+              setdiff(names(tbl), intersect(names(ff), names(tbl)))
+            #if (Sys.info()["sysname"] == "Linux") {
+            #  lookup_dt(dt, tbl, check_lookup_tbl_validity = FALSE) #TODO: Lookup_dt
+            #} else {
+            ff <- absorb_dt(ff, tbl)
+            #}
+            
+            ff[, white_meat_curr_xps := get_twopm_quantile(
+              p = rank_white_meat,
+              param_dt = .SD,
+              qfun_nam = "qGG",
+              pos_pars = setdiff(col_nam, "xi0"),
+              xi0_col = "xi0",
+              cut_con = 12L), .SDcols = col_nam]
+            
+            ff[, (col_nam) := NULL]
+            ff[, rank_white_meat := NULL]
+            
+            ff[, year := year + lag]
+          }
           
-          ff[, (col_nam) := NULL]
-          ff[, rank_sbp := NULL]
-          ff[, year := year + lag]
-          }
-
-          # Generate total cholesterol ----
-          xps <- c("tchol", "t2dm_prvl")
+          # Generate fish intake ----
+          xps <- c("fish", "t2dm_prvl")
           if (any(xps %in% sapply(private$rr, `[[`, "name"))) {
             if (xps[[1]] %in% sapply(private$rr, `[[`, "name")) {
               lag <- private$rr[[paste0(xps[[1]], "~", self$name)]]$lag
@@ -2124,53 +2207,31 @@ Disease <-
               lag <- 0L
             }
             ff[, year := year - lag]
-
-          tbl <-
-            read_fst("./inputs/exposure_distributions/tc_table.fst", as.data.table = TRUE)
-
-          col_nam <-
-            setdiff(names(tbl), intersect(names(ff), names(tbl)))
-          #if (Sys.info()["sysname"] == "Linux") {
-          #  lookup_dt(ff, tbl, check_lookup_tbl_validity = FALSE) #TODO: lookup_dt
-          #} else {
+            
+            tbl <-
+              read_fst("./inputs/exposure_distributions/fish_twopart_parameter_table.fst",
+                       as.data.table = TRUE)
+            col_nam <-
+              setdiff(names(tbl), intersect(names(ff), names(tbl)))
+            #if (Sys.info()["sysname"] == "Linux") {
+            #  lookup_dt(dt, tbl, check_lookup_tbl_validity = FALSE) #TODO: Lookup_dt
+            #} else {
             ff <- absorb_dt(ff, tbl)
-          #}
-
-          ff[, tchol_curr_xps := qBCTo(rank_tchol, mu, sigma, nu, tau)]
-          ff[tchol_curr_xps > 100, tchol_curr_xps := 100] #Truncate cholesterol predictions to avoid unrealistic values.
-
-          ff[, (col_nam) := NULL]
-          ff[, rank_tchol := NULL]
-          ff[, year := year + lag]
+            #}
+            
+            ff[, fish_curr_xps := get_twopm_quantile(
+              p = rank_fish,
+              param_dt = .SD,
+              qfun_nam = "qBCPE",
+              pos_pars = setdiff(col_nam, "xi0"),
+              xi0_col = "xi0",
+              cut_con = 5L), .SDcols = col_nam]
+            
+            ff[, (col_nam) := NULL]
+            ff[, rank_fish := NULL]
+            
+            ff[, year := year + lag]
           }
-
-          # Generate BMI ----
-          xps <- c("bmi", "t2dm_prvl")
-          if (any(xps %in% sapply(private$rr, `[[`, "name"))) {
-            if (xps[[1]] %in% sapply(private$rr, `[[`, "name")) {
-              lag <- private$rr[[paste0(xps[[1]], "~", self$name)]]$lag
-            } else {
-              lag <- 0L
-            }
-            ff[, year := year - lag]
-
-          tbl <-
-            read_fst("./inputs/exposure_distributions/bmi_table.fst",
-                     as.data.table = TRUE)
-          col_nam <-
-            setdiff(names(tbl), intersect(names(ff), names(tbl)))
-          #if (Sys.info()["sysname"] == "Linux") {
-          #  lookup_dt(ff, tbl, check_lookup_tbl_validity = FALSE) #TODO: lookup_dt
-          #} else {
-            ff <- absorb_dt(ff, tbl)
-          #}
-          ff[, bmi_curr_xps := my_qBCPEo(rank_bmi, mu, sigma, nu, tau, n_cpu = design_$sim_prm$n_cpu)]
-          ff[bmi_curr_xps > 80, bmi_curr_xps := 80] #Truncate BMI predictions to avoid unrealistic values.
-          ff[, rank_bmi := NULL]
-          ff[, (col_nam) := NULL]
-          ff[, year := year + lag]
-          }
-
 
           nam <- grep("rank", names(ff), value = TRUE)
           if (length(nam) > 0) ff[, (nam) := NULL]
