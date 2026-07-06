@@ -7,6 +7,7 @@
   # 2. Read tax pass-through table with uncertainty: used Karls SSB pass-through
   # 3. Create price change table and demand change table: red meat based on weighted average of beef and pork
   # 4. Calculate consumption changes delta_xps
+  # 5. Calculate changes in environmental outcomes: GHGEs, water and land use
   #
   # Scenarios:
   #   sc0: No  intervention
@@ -27,6 +28,7 @@
   library(data.table)
   library(fst)
   
+  
   #### Scenarios for German meat-tax modelling ---------------------------------
   
   scenario_0_fn <- function(sp) {
@@ -35,8 +37,62 @@
                "processed_meat_delta_xps",
                "white_meat_delta_xps",
                "fish_delta_xps") := 0]
+
+    # Current annual environmental footprints
+    meat_env_tbl <- read_fst("./xiao_testing/environment_footprints_meat.fst", as.data.table = TRUE)
+    gday_to_kgyear <- 365 / 1000
     
-  }
+    sp$pop[, red_meat_curr_ghg :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", ghg]]
+    
+    sp$pop[, processed_meat_curr_ghg :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", ghg]]
+    
+    sp$pop[, white_meat_curr_ghg :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", ghg]]
+    
+    sp$pop[, fish_curr_ghg :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", ghg]]
+    
+    
+    sp$pop[, red_meat_curr_water :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", water]]
+    
+    sp$pop[, processed_meat_curr_water :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", water]]
+    
+    sp$pop[, white_meat_curr_water :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", water]]
+    
+    sp$pop[, fish_curr_water :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", water]]
+    
+    
+    sp$pop[, red_meat_curr_land :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", land]]
+    
+    sp$pop[, processed_meat_curr_land :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", land]]
+    
+    sp$pop[, white_meat_curr_land :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", land]]
+    
+    sp$pop[, fish_curr_land :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", land]]
+    
+    sp$pop[, c("red_meat_delta_ghg",
+               "processed_meat_delta_ghg",
+               "white_meat_delta_ghg",
+               "fish_delta_ghg",
+               "red_meat_delta_water",
+               "processed_meat_delta_water",
+               "white_meat_delta_water",
+               "fish_delta_water",
+               "red_meat_delta_land",
+               "processed_meat_delta_land",
+               "white_meat_delta_land",
+               "fish_delta_land") := 0]
+    }
   
   ### Scenario 1 - VAT increase from 7% to 19% on red and processed meat --------
   
@@ -115,6 +171,102 @@
            white_meat_curr_xps := pmax(0, white_meat_curr_xps - white_meat_delta_xps)]
     sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
            fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
+    
+    # Current annual environmental footprints after consumption changes
+    meat_env_tbl <- read_fst("./xiao_testing/environment_footprints_meat.fst", as.data.table = TRUE)
+    gday_to_kgyear <- 365 / 1000
+    
+    sp$pop[, red_meat_curr_ghg :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", ghg]]
+    
+    sp$pop[, processed_meat_curr_ghg :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", ghg]]
+    
+    sp$pop[, white_meat_curr_ghg :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", ghg]]
+    
+    sp$pop[, fish_curr_ghg :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", ghg]]
+    
+    
+    sp$pop[, red_meat_curr_water :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", water]]
+    
+    sp$pop[, processed_meat_curr_water :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", water]]
+    
+    sp$pop[, white_meat_curr_water :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", water]]
+    
+    sp$pop[, fish_curr_water :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", water]]
+    
+    
+    sp$pop[, red_meat_curr_land :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", land]]
+    
+    sp$pop[, processed_meat_curr_land :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", land]]
+    
+    sp$pop[, white_meat_curr_land :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", land]]
+    
+    sp$pop[, fish_curr_land :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", land]]
+    
+    # Environmental changes due to scenario-induced intake changes
+    # Positive value = environmental reduction
+    # Negative value = environmental increase, e.g. from substitution
+    
+    sp$pop[, red_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", ghg], 0)]
+    
+    sp$pop[, processed_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", ghg], 0)]
+    
+    sp$pop[, white_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", ghg], 0)]
+    
+    sp$pop[, fish_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", ghg], 0)]
+    
+    
+    sp$pop[, red_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", water], 0)]
+    
+    sp$pop[, processed_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", water],0)]
+    
+    sp$pop[, white_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", water], 0)]
+    
+    sp$pop[, fish_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", water], 0)]
+    
+    
+    sp$pop[, red_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", land], 0)]
+    
+    sp$pop[, processed_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", land], 0)]
+    
+    sp$pop[, white_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", land], 0)]
+    
+    sp$pop[, fish_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", land], 0)]
     
   }
   
@@ -210,6 +362,102 @@
     sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
            fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
     
+    # Current annual environmental footprints after consumption changes
+    meat_env_tbl <- read_fst("./xiao_testing/environment_footprints_meat.fst", as.data.table = TRUE)
+    gday_to_kgyear <- 365 / 1000
+    
+    sp$pop[, red_meat_curr_ghg :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", ghg]]
+    
+    sp$pop[, processed_meat_curr_ghg :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", ghg]]
+    
+    sp$pop[, white_meat_curr_ghg :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", ghg]]
+    
+    sp$pop[, fish_curr_ghg :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", ghg]]
+    
+    
+    sp$pop[, red_meat_curr_water :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", water]]
+    
+    sp$pop[, processed_meat_curr_water :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", water]]
+    
+    sp$pop[, white_meat_curr_water :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", water]]
+    
+    sp$pop[, fish_curr_water :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", water]]
+    
+    
+    sp$pop[, red_meat_curr_land :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", land]]
+    
+    sp$pop[, processed_meat_curr_land :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", land]]
+    
+    sp$pop[, white_meat_curr_land :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", land]]
+    
+    sp$pop[, fish_curr_land :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", land]]
+    
+    # Environmental changes due to scenario-induced intake changes
+    # Positive value = environmental reduction
+    # Negative value = environmental increase, e.g. from substitution
+    
+    sp$pop[, red_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", ghg], 0)]
+    
+    sp$pop[, processed_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", ghg], 0)]
+    
+    sp$pop[, white_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", ghg], 0)]
+    
+    sp$pop[, fish_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", ghg], 0)]
+    
+    
+    sp$pop[, red_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", water], 0)]
+    
+    sp$pop[, processed_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", water],0)]
+    
+    sp$pop[, white_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", water], 0)]
+    
+    sp$pop[, fish_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", water], 0)]
+    
+    
+    sp$pop[, red_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", land], 0)]
+    
+    sp$pop[, processed_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", land], 0)]
+    
+    sp$pop[, white_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", land], 0)]
+    
+    sp$pop[, fish_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", land], 0)]
+    
   }
   
   ### Scenario 3 - GHGE-based excise tax using EUR 55/t CO2eq -------------------
@@ -285,7 +533,7 @@
       stop("Missing relative demand-change value.")
     }
     
-    # Change in meat and fish consumption after tax #
+    # Change in meat and fish consumption after tax
     sp$pop[, red_meat_delta_xps :=
              red_meat_curr_xps - pmax(0, red_meat_curr_xps * (1 + rel_change["red_meat"]))]
     sp$pop[, processed_meat_delta_xps :=
@@ -303,5 +551,101 @@
            white_meat_curr_xps := pmax(0, white_meat_curr_xps - white_meat_delta_xps)]
     sp$pop[year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
            fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
+    
+    # Current annual environmental footprints after consumption changes
+    meat_env_tbl <- read_fst("./xiao_testing/environment_footprints_meat.fst", as.data.table = TRUE)
+    gday_to_kgyear <- 365 / 1000
+    
+    sp$pop[, red_meat_curr_ghg :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", ghg]]
+    
+    sp$pop[, processed_meat_curr_ghg :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", ghg]]
+    
+    sp$pop[, white_meat_curr_ghg :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", ghg]]
+    
+    sp$pop[, fish_curr_ghg :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", ghg]]
+    
+    
+    sp$pop[, red_meat_curr_water :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", water]]
+    
+    sp$pop[, processed_meat_curr_water :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", water]]
+    
+    sp$pop[, white_meat_curr_water :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", water]]
+    
+    sp$pop[, fish_curr_water :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", water]]
+    
+    
+    sp$pop[, red_meat_curr_land :=
+             red_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", land]]
+    
+    sp$pop[, processed_meat_curr_land :=
+             processed_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", land]]
+    
+    sp$pop[, white_meat_curr_land :=
+             white_meat_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", land]]
+    
+    sp$pop[, fish_curr_land :=
+             fish_curr_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", land]]
+    
+    # Environmental changes due to scenario-induced intake changes
+    # Positive value = environmental reduction
+    # Negative value = environmental increase, e.g. from substitution
+    
+    sp$pop[, red_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", ghg], 0)]
+    
+    sp$pop[, processed_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", ghg], 0)]
+    
+    sp$pop[, white_meat_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", ghg], 0)]
+    
+    sp$pop[, fish_delta_ghg :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", ghg], 0)]
+    
+    
+    sp$pop[, red_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", water], 0)]
+    
+    sp$pop[, processed_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", water],0)]
+    
+    sp$pop[, white_meat_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", water], 0)]
+    
+    sp$pop[, fish_delta_water :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", water], 0)]
+    
+    
+    sp$pop[, red_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     red_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "red_meat", land], 0)]
+    
+    sp$pop[, processed_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     processed_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "processed_meat", land], 0)]
+    
+    sp$pop[, white_meat_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     white_meat_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "white_meat", land], 0)]
+    
+    sp$pop[, fish_delta_land :=
+             fifelse(year > (IMPACTncd$design$sim_prm$init_year_intv - 2000),
+                     fish_delta_xps * gday_to_kgyear * meat_env_tbl[meat == "fish", land], 0)]
     
   }
