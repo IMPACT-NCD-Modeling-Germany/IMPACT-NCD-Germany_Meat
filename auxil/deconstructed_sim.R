@@ -49,7 +49,7 @@ mk_scenario_init2 <- function(scenario_name, diseases_, sp, design_) {
 # ll <- sim$gen_synthpop_demog(design)
 
 #TODO include informative error to check whether exposure table is matching data
-sp  <- SynthPop$new(10L, design)
+sp  <- SynthPop$new(1L, design)
 
 
 

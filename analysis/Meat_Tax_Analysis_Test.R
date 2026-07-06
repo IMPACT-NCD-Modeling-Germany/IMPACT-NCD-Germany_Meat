@@ -18,8 +18,8 @@ new_export <- TRUE
 if(new_runs){
   
   # Create batches for batched simulation
-  batch_size <- 5
-  iterations <- 50
+  batch_size <- 2
+  iterations <- 6
   first_iteration <- 1
   batches <- split(seq(first_iteration, iterations + first_iteration - 1),
                    f = findInterval(seq(first_iteration, iterations + first_iteration - 1),
@@ -38,7 +38,7 @@ analysis_name <- "Meat_Tax"
 IMPACTncd <- Simulation$new("./inputs/sim_design_meat_test.yaml", analysis_name)
 
 # TODO load scenario script here   
-source("./auxil/scenarios_GLP_uncertain_sc0.R") 
+source("./xiao_testing/scenarios_meat_tax.R") 
 
 if(new_runs){
   
@@ -60,10 +60,14 @@ if(new_runs){
     
     IMPACTncd$
       run(i, multicore = TRUE, "sc2", m_zero_trend = -0.03, p_zero_trend = 0)
+    
+    scenario_fn <- scenario_3_fn
+    
+    IMPACTncd$
+      run(i, multicore = TRUE, "sc3", m_zero_trend = -0.03, p_zero_trend = 0)
 
   }
 }
-
 
 if(new_export){
   IMPACTncd$export_summaries(multicore = TRUE) 
