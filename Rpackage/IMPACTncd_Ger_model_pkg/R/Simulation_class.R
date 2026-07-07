@@ -299,7 +299,7 @@ Simulation <-
             ),
             .export = NULL,
             .noexport = NULL, # c("time_mark")
-            .options.multicore = list(preschedule = FALSE)
+            .options.multicore = list(preschedule = TRUE)
           ) %dopar% {
 
             private$run_sim(mc_ = mc_iter, scenario_nam,
@@ -393,7 +393,7 @@ Simulation <-
             ),
             .export = NULL,
             .noexport = NULL, # c("time_mark")
-            .options.multicore = list(preschedule = FALSE)
+            .options.multicore = list(preschedule = TRUE)
           ) %dopar% {
 
             lc <-   fread(fl[i], stringsAsFactors = TRUE, key = c("scenario", "pid", "year"))
