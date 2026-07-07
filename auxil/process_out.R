@@ -31,7 +31,7 @@ theme_update(axis.text.x = element_text(size = 9),
 prbl = c(0.5, 0.025, 0.975, 0.1, 0.9) # Quantiles for uncertainty of results
 
 for(analysis in dirs){
-    
+
     if(!Sys.info()[1] == "Windows"){
       
       # Input path for IMPACT results
@@ -4847,6 +4847,222 @@ for(analysis in dirs){
           }
         }
     }
+  
+  
+  if("env_scaled_up.csv.gz" %in% list.files(in_path)){
+    
+    ## Environmental outcomes and changes total by year ## ----
+    
+    tt <- fread(paste0(in_path, "/env_scaled_up.csv.gz"))
+    tt[, year := year + 2000]
+    
+    env_outcome_cols <- grep("_curr_ghg$|_delta_ghg$|_curr_water$|_delta_water$|_curr_land$|_delta_land$",
+                             names(tt), value = TRUE)
+    
+    # Convert changes to negative values
+    tt[, (grep("_delta_", names(tt), value = TRUE)) := lapply(.SD, `*`, -1), .SDcols = (grep("_delta_", names(tt), value = TRUE))]
+    
+    # Set changes before 2023 to 0!
+    # This is needed because changes are computed for every year but only active after the intervention starts!
+    tt[year < 2023, (grep("_delta_", names(tt), value = TRUE)) := 0]
+    
+    # Convert GHGEs to tonnes per CO2eq instead of kg
+    ghg_cols <- grep("_ghg$", names(tt), value = TRUE)
+    tt[, (ghg_cols) := lapply(.SD, `/`, 1000), .SDcols = ghg_cols]
+    
+    outstrata <- c("mc", "year", "scenario")
+    evalstrata <- outstrata[outstrata != "scenario"]
+    
+    sc_n <- na.omit(as.numeric(gsub("[^1-9]+", "", unique(tt$scenario)))) 
+    
+    ## Environmental footprint levels and changes over time ----
+    
+    d <- tt[, lapply(.SD, sum), .SDcols = env_outcome_cols, keyby = eval(outstrata)]
+    d <- melt(d, id.vars = outstrata)
+    d <- d[, fquantile_byid(value, prbl, id = as.character(variable)), keyby = eval(setdiff(outstrata, "mc"))]
+    
+    setnames(d, c(setdiff(outstrata, "mc"), "env", percent(prbl, prefix = "env_sum_")))
+    
+    fwrite(d, paste0(out_path_tables, "env_and_changes_by_year.csv"), sep = ";")
+    
+    ## Plot 1: Environmental footprint changes ----
+    ggplot(d[env %in% grep("_delta_", names(tt), value = TRUE)],
+           aes(x = year, y = `env_sum_50.0%`, ymin = `env_sum_2.5%`,
+               ymax = `env_sum_97.5%`,
+               colour = scenario, fill = scenario)) +
+      facet_wrap(~ env, scales = "free") +
+      geom_ribbon(alpha = 0.5/5, colour = NA) +
+      geom_line() +
+      scale_x_continuous(name = "Year") +
+      scale_y_continuous(name = "Change in environmental footprints",
+                         labels = scales::label_number(scale_cut = scales::cut_short_scale(), accuracy = 1)) +
+      ggtitle("Environmental footprint changes by scenario over time") +
+      expand_limits(y = 0) +
+      theme(legend.title = element_blank())
+    
+    ggsave(paste0(out_path_plots, "env_changes_by_year.", plot_format),
+           height = 9, width = 16)
+    
+    ## Plot 2: Environmental footprint levels ----
+    ggplot(d[!(env %in% grep("_delta_", names(tt), value = TRUE))],
+           aes(x = year, y = `env_sum_50.0%`, ymin = `env_sum_2.5%`,
+               ymax = `env_sum_97.5%`,
+               colour = scenario, fill = scenario)) +
+      facet_wrap(~ env, scales = "free") +
+      geom_ribbon(alpha = 0.5/5, colour = NA) +
+      geom_line() +
+      scale_x_continuous(name = "Year") +
+      scale_y_continuous(name = "Environmental footprint level",
+                         labels = scales::label_number(scale_cut = scales::cut_short_scale(), accuracy = 1)) +
+      ggtitle("Environmental footprint levels by scenario over time") +
+      expand_limits(y = 0) +
+      theme(legend.title = element_blank())
+    
+    ggsave(paste0(out_path_plots, "env_levels_by_year.", plot_format),
+           height = 9, width = 16)
+    
+    ## Differences to sc0 over time ----
+    
+    d <- tt[, lapply(.SD, sum), .SDcols = env_outcome_cols, keyby = eval(outstrata)]
+    env_ <- intersect(env_outcome_cols, names(d))
+    d <- melt(d, id.vars = outstrata)
+    d <- dcast(d, as.formula(paste(paste(evalstrata, collapse = "+"), "~ scenario + variable")))
+    diffs0 <- grep("sc0_", names(d), value = TRUE)
+    
+    d_out <- data.table(NULL)
+    
+    for(j in sc_n){  
+      
+      if(length(grep(paste0("sc", j, "_"), names(d), value = TRUE)) != 0){
+        assign(paste0("diffs", j), grep(paste0("sc", j, "_"), names(d), value = TRUE))
+        sens <- FALSE
+      } else {
+        assign(paste0("diffs", j), grep(paste0("sens_", j, "_"), names(d), value = TRUE))
+        sens <- TRUE
+      }
+      
+      for(i in 1:(length(get(paste0("diffs", j))))){
+        
+        d[, paste0("diff_", env_)[i] := list(get(get(paste0("diffs", j))[i]) - get(diffs0[i]))]
+        
+      }
+      
+      dd <- copy(d)
+      dd[, setdiff(names(d), intersect(c(evalstrata, grep("diff_", names(d), value = TRUE)), names(d))) := NULL]
+      dd <- melt(dd, id.vars = evalstrata)
+      dd <- dd[, fquantile_byid(value, prbl, id = as.character(variable)), keyby = eval(evalstrata[evalstrata != "mc"])]
+      setnames(dd, c(evalstrata[evalstrata != "mc"], "env", percent(prbl, prefix = "env_sum_")))
+      
+      if(sens){
+        dd[, scenario := paste0("sens_", j)]
+      } else {
+        dd[, scenario := paste0("sc", j)]
+      }
+      
+      d_out <- rbind(d_out, dd)
+    }
+    
+    fwrite(d_out, paste0(out_path_tables, "env_diff_by_year.csv"), sep = ";")
+    
+    ## Plot 3: Differences to sc0 ----
+    ggplot(d_out[!(env %in% grep("_delta_", unique(d_out$env), value = TRUE))],
+           aes(x = year, y = `env_sum_50.0%`, ymin = `env_sum_2.5%`,
+               ymax = `env_sum_97.5%`,
+               colour = scenario, fill = scenario)) +
+      facet_wrap(~ env, scales = "free") +
+      geom_ribbon(alpha = 0.5/5, colour = NA) +
+      geom_line() +
+      scale_x_continuous(name = "Year") +
+      scale_y_continuous(name = "Difference in environmental footprint level",
+                         labels = scales::label_number(scale_cut = scales::cut_short_scale(), accuracy = 1)) + 
+      ggtitle("Difference in environmental footprint levels compared with baseline over time") +
+      expand_limits(y = 0) +
+      theme(legend.title = element_blank())
+    
+    ggsave(paste0(out_path_plots, "env_diff_by_year.", plot_format),
+           height = 9, width = 16)
+    
+    ## Total annual and cumulative environmental savings across exposure types ----
+    # Savings = baseline - scenario (positive = net saving compared to sc0)
+    
+    env_curr_cols <- grep("_curr_", env_outcome_cols, value = TRUE)
+    d <- tt[, lapply(.SD, sum), .SDcols = env_curr_cols, keyby = eval(outstrata)]
+
+    d <- melt(d, id.vars = outstrata)
+    d <- dcast(d, as.formula(paste(paste(evalstrata, collapse =  "+"), "~ scenario + variable")))
+    diffs0 <- paste0("sc0_", env_curr_cols)
+    
+    d_out <- data.table(NULL) # Total annual savings
+    d_cum <- data.table(NULL) # Output for last simulation year
+    
+    for(j in sc_n){
+      
+      if(length(grep(paste0("sc", j, "_"), names(d), value = TRUE)) != 0){
+        assign(paste0("diffs", j), grep(paste0("sc", j, "_"), names(d), value = TRUE))
+        sens <- FALSE
+      } else {
+        assign(paste0("diffs", j), grep(paste0("sens_", j, "_"), names(d), value = TRUE))
+        sens <- TRUE
+      }
+      
+      for(i in 1:(length(get(paste0("diffs", j))))){
+        
+        d[, paste0("diff_", env_curr_cols)[i] := list(get(get(paste0("diffs", j))[i]) - get(diffs0[i]))] # sc - sc0
+      }
+      
+      # a). Total annual savings
+      dd <- copy(d)
+      dd[, setdiff(names(d), intersect(c(evalstrata, grep("diff_", names(d), value = TRUE)), names(d))) := NULL]
+      dd <- melt(dd, id.vars = evalstrata)
+      dd[, env := fifelse(grepl("_ghg$", variable), "total_ghg",
+                          fifelse(grepl("_water$", variable), "total_water",
+                                  fifelse(grepl("_land$", variable), "total_land", NA_character_)))]
+      
+      dd <- dd[, .(value = -sum(value)), by = c(evalstrata, "env")] # change the sign sc0 - sc
+      
+      ee <- copy(dd)
+      
+      dd <- dd[, fquantile_byid(value, prbl, id = as.character(env)), keyby = eval(evalstrata[evalstrata != "mc"])]
+      setnames(dd, c(evalstrata[evalstrata != "mc"], "env", percent(prbl, prefix = "env_saving_")))
+      
+      if(sens){
+        dd[, scenario := paste0("sens_", j)]
+        ee[, scenario := paste0("sens_", j)]
+      } else {
+        dd[, scenario := paste0("sc", j)]
+        ee[, scenario := paste0("sc", j)]
+      }
+      
+      d_out <- rbind(d_out, dd)
+      
+      # b). Cumulative savings over time
+      ee <- ee[, .(value = cumsum(value)), by = .(mc, scenario, env)]
+      ee[, year := max(tt$year)]
+      ee <- ee[, fquantile_byid(value, prbl, id = as.character(env)), keyby = .(scenario, year)]
+      setnames(ee, c("scenario", "year", "env", percent(prbl, prefix = "env_cum_saving_")))
+      
+      d_cum <- rbind(d_cum, ee)
+    }
+    
+    fwrite(d_out, paste0(out_path_tables, "env_total_annual_savings_by_year.csv"), sep = ";")
+    fwrite(d_cum, paste0(out_path_tables, "env_total_cumulative_savings.csv"), sep = ";")
+    
+    ## Plot 4: Annual total environmental savings over time ----
+    ggplot(d_out, aes(x = year, y = `env_saving_50.0%`, ymin = `env_saving_2.5%`, ymax = `env_saving_97.5%`,
+                      colour = scenario, fill = scenario)) +
+      facet_wrap(~ env, scales = "free") +
+      geom_ribbon(alpha = 0.5/5, colour = NA) +
+      geom_line() +
+      scale_x_continuous(name = "Year") +
+      scale_y_continuous(name = "Annual environmental footprint savings",
+                         labels = scales::label_number(accuracy = 1, scale_cut = scales::cut_short_scale())) +
+      ggtitle("Total annual environmental savings compared to baseline over time") +
+      expand_limits(y = 0) +
+      theme(legend.title = element_blank())
+    
+    ggsave(paste0(out_path_plots, "env_total_annual_savings_by_year", plot_format), height = 9, width = 16)
+    
+  }
     
 }
     
