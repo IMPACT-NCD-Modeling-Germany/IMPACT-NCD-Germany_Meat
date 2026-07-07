@@ -341,7 +341,7 @@ Simulation <-
                                                              "stroke_risk_10y", 
                                                              "chd_risk_10y", 
                                                              "t2dm_risk_10y",
-                                                             "xps", "cea")) { 
+                                                             "xps", "cea", "env")) { # Added environmental outcomes
 
         fl <- list.files(private$output_dir("lifecourse"), full.names = TRUE)
         # logic to avoid inappropriate dual processing of already processed mcs
@@ -355,8 +355,9 @@ Simulation <-
         if ("cea" %in% type) file_pth <- private$output_dir("summaries/health_economic_results.csv.gz") else
         if ("xps" %in% type) file_pth <- private$output_dir("summaries/xps_scaled_up.csv.gz") else
         if ("stroke_risk_10y" %in% type) file_pth <- private$output_dir("summaries/stroke_10y_scaled_up.csv.gz") else
-          if ("chd_risk_10y" %in% type) file_pth <- private$output_dir("summaries/chd_10y_scaled_up.csv.gz") else
-            if ("t2dm_risk_10y" %in% type) file_pth <- private$output_dir("summaries/t2dm_10y_scaled_up.csv.gz") 
+        if ("chd_risk_10y" %in% type) file_pth <- private$output_dir("summaries/chd_10y_scaled_up.csv.gz") else
+        if ("t2dm_risk_10y" %in% type) file_pth <- private$output_dir("summaries/t2dm_10y_scaled_up.csv.gz") else
+        if("env" %in% type) file_pth <- private$$output_dir("summaries/env_scaled_up.csv.gz")
 
         if (file.exists(file_pth)) {
           tt <- unique(fread(file_pth, select = "mc")$mc)
@@ -786,7 +787,7 @@ Simulation <-
                                                   "stroke_risk_10y", 
                                                   "chd_risk_10y", 
                                                   "t2dm_risk_10y", 
-                                                  "xps", "cea")) {   ## Removing "BC"
+                                                  "xps", "cea", "env")) {   ## Removing "BC"; Added environmental outcomes
         if (self$design$sim_prm$logs) message("Exporting summaries...")
         # strata <- setdiff(self$design$sim_prm$cols_for_output, c("age", "pid", "wt"))
         strata <- c("mc",
@@ -1401,11 +1402,34 @@ Simulation <-
 
           setnames(lc, c("bmi_delta", "sbp_delta", "tchol_delta"), c("bmi_delta_xps", "sbp_delta_xps", "tchol_delta_xps"))
 
+
           fwrite_safe(lc[, lapply(.SD, weighted.mean, wt),
                          .SDcols = patterns("_xps$"), keyby = strata],
                       private$output_dir(paste0("summaries", "/xps_scaled_up.csv.gz"
                       )))
 
+        }
+        
+        # XIAO: Added annual per-person environmental outcomes ----
+        # Unit should already be in kg CO2eq/person/year from scenario script
+
+        if("env" %in% type){
+          
+          if (self$design$sim_prm$logs) message("Exporting environmental outcomes and changes...")
+
+          
+          fwrite_safe(lc[, c("popsize" = sum(wt),
+                             lapply(.SD, function(x, wt) sum(x * wt), wt)),
+                         .SDcols = grep("_curr_ghg$|_delta_ghg$|_curr_water$|_delta_water$|_curr_land$|_delta_land$",
+                                        names(lc), value = TRUE), 
+                         keyby = strata], private$output_dir(paste0("summaries", "/env_scaled_up.csv.gz")))
+          # wt_esp needed?
+          fwrite_safe(lc[, c("popsize" = sum(wt_esp),
+                             lapply(.SD, function(x, wt) sum(x * wt), wt_esp)),
+                         .SDcols = grep("_curr_ghg$|_delta_ghg$|_curr_water$|_delta_water$|_curr_land$|_delta_land$",
+                                        names(lc), value = TRUE),
+                         keyby = strata], private$output_dir(paste0("summaries", "/env_esp.csv.gz")))
+          
         }
         
 
