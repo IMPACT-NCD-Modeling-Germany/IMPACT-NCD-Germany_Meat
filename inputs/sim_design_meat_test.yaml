@@ -8,7 +8,7 @@ logs: yes
 export_xps: yes
 keep_lifecourse: yes
 export_PARF: no
-'n': 1000
+'n': 75000
 n_synthpop_aggregation: 2 # number of synthpops to aggregate together
 # n_primers: 10 # better be some multiple of n_synthpop_aggregation
 init_year_long: 2013 # 2008 to 2020 but be careful with max lags
@@ -23,19 +23,20 @@ init_ftlt_calibration: yes # NEW: Indicator whether case fatality is calibrated 
 mortality_calibration: yes # NEW: Activate or deactivate mortality calibration to FDM forecast. Conditional on CF calibration
 calibrate_incd_prb_to_init_year: yes # NEW: Activate calibration of incidence probability to inital year incidence (needed when modeling many risk factors!)
 diseases:
-- name: obesity
-  friendly_name: Obesity
+- name: t2dm
+  friendly_name: T2DM
   meta:
     incidence:
-      type: 1 # deterministically depend on exposure(s)
-      aggregation: 'any' # Other option is "all". If more than one RF is case definition expects any or all to be present?. Irrelevant for 1 RF
-      can_recur: yes # cure depends on the relevant exposure(s)
+      type: 2
+      can_recur: no
     diagnosis:
       type: 1
       probability: 1
+      duration_distr: GPO
       mm_wt: 0.0
     mortality:
-      type: ~ # NULL
+      type: 1
+      code: 4
   notes: .na
 - name: chd
   friendly_name: CHD
@@ -71,21 +72,6 @@ diseases:
       influenced_by_disease_name: t2dm
       code: 3
   notes: .na
-- name: t2dm
-  friendly_name: T2DM
-  meta:
-    incidence:
-      type: 2
-      can_recur: no
-    diagnosis:
-      type: 1
-      probability: 1
-      duration_distr: GPO
-      mm_wt: 0.0
-    mortality:
-      type: 1
-      code: 4
-  notes: .na
 - name: nonmodelled
   friendly_name: nonmodelled
   meta:
@@ -120,6 +106,34 @@ cols_for_output:
 - red_meat_curr_xps
 - white_meat_curr_xps
 - fish_curr_xps
+- processed_meat_delta_xps
+- red_meat_delta_xps
+- white_meat_delta_xps
+- fish_delta_xps
+- processed_meat_curr_ghg
+- red_meat_curr_ghg
+- white_meat_curr_ghg
+- fish_curr_ghg
+- processed_meat_curr_water
+- red_meat_curr_water
+- white_meat_curr_water
+- fish_curr_water
+- processed_meat_curr_land
+- red_meat_curr_land
+- white_meat_curr_land
+- fish_curr_land
+- processed_meat_delta_ghg
+- red_meat_delta_ghg
+- white_meat_delta_ghg
+- fish_delta_ghg
+- processed_meat_delta_water
+- red_meat_delta_water
+- white_meat_delta_water
+- fish_delta_water
+- processed_meat_delta_land
+- red_meat_delta_land
+- white_meat_delta_land
+- fish_delta_land
 strata_for_output:
 - scenario
 - year
@@ -130,6 +144,4 @@ exposures:
 - sex
 - processed_meat
 - red_meat
-- white_meat
-- fish
 

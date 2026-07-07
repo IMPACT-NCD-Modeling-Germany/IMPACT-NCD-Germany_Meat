@@ -837,7 +837,7 @@ SynthPop <-
 
             cm_mean <- as.matrix(
               read_fst(
-                "./inputs/exposure_distributions/exposure_corr.fst",
+                "./inputs/exposure_distributions/exposure_corr_meat.fst",
                 as.data.table = TRUE
               ),
               rownames = "rn"
@@ -850,12 +850,14 @@ SynthPop <-
             # This scaling does not affect correlations
             # /0.999 because I multiplied all the columns below
             rank_mtx <- rank_mtx * 0.999
-            rank_mtx[, "bmi_r"] <-
-              rank_mtx[, "bmi_r"] * 0.90 / 0.999
-            rank_mtx[, "sbp_r"] <-
-              rank_mtx[, "sbp_r"] * 0.95 / 0.999
-            rank_mtx[, "tchol_r"] <-
-              rank_mtx[, "tchol_r"] * 0.95 / 0.999
+            rank_mtx[, "processed_meat_r"] <-
+              rank_mtx[, "processed_meat_r"] * 0.95 / 0.999
+            rank_mtx[, "red_meat_r"] <-
+              rank_mtx[, "red_meat_r"] * 0.95 / 0.999
+            rank_mtx[, "white_meat_r"] <-
+              rank_mtx[, "white_meat_r"] * 0.95 / 0.999
+            rank_mtx[, "fish_r"] <-
+              rank_mtx[, "fish_r"] * 0.95 / 0.999
             # sum((cor(rank_mtx) - cm_mean) ^ 2)
             if (design_$sim_prm$logs) message("correlated ranks matrix to data.table")
 
@@ -863,28 +865,13 @@ SynthPop <-
 
             # NOTE rankstat_* is unaffected by the RW. Stay constant through the lifecourse
             dt[, c(
-              "rank_bmi",
-              "rank_sbp",
-              "rank_tchol"
+              "rank_processed_meat",
+              "rank_red_meat",
+              "rank_white_meat",
+              "rank_fish"
             ) := rank_mtx]
 
             rm(rank_mtx)
-
-            # add non-correlated RNs
-            #rank_cols <-
-            #  c(
-            #    "rankstat_ssb_sug",     # Jane: what are these? Why are these two variable needed?
-            #    "rankstat_juice_sug"    # Jane: why are they not correlated? should I replace them with "rankstat_sbp", "rankstat_tchol"
-            #  )
-            
-            rank_cols <-
-              c(
-                "rankstat_sbp",     # Jane: what are these? Why are these two variable needed?
-                "rankstat_tchol"    # Jane: why are they not correlated? should I replace them with "rankstat_sbp", "rankstat_tchol"
-              )                     # Karl: added non-correlated random numbers, for some/additional variables
-
-            for (nam in rank_cols)
-              set(dt, NULL, nam, dqrunif(new_n)) # NOTE do not replace with generate_rns function.
 
             # Project forward for simulation and back project for lags  ----
             if (design_$sim_prm$logs) message("Project forward and back project")
@@ -920,10 +907,6 @@ SynthPop <-
               dt[age > 90L, age := 90L]
             }
 
-            # to_agegrp(dt, 20L, 85L, "age", "agegrp20", to_factor = TRUE)
-            # to_agegrp(dt, 10L, 85L, "age", "agegrp10", to_factor = TRUE)
-            # to_agegrp(dt,  5L, 85L, "age", "agegrp5" , to_factor = TRUE)
-
             # Simulate exposures -----
 
             # Random walk for ranks ----
@@ -939,37 +922,42 @@ SynthPop <-
                         pid_mrk,
                         design_$sim_prm$jumpiness),
                .SDcols = patterns("^rank_")]
-            # ggplot2::qplot(year, rank_ssb, data = dt[pid %in% sample(1e1, 1)], ylim = c(0,1))
 
-
-            # Generate sbp (qBCCG) ----
-            if (design_$sim_prm$logs) message("Generate sbp")
-
+            # Generate processed meat (qBCPE, cutoff for two-part model: 3 g/day) ----
+            if (design_$sim_prm$logs) message("Generate processed meat intake")
+            
             tbl <-
-              read_fst("./inputs/exposure_distributions/sbp_table.fst", as.data.table = TRUE)
-
+              read_fst("./inputs/exposure_distributions/processed_meat_twopart_parameter_table.fst",
+                       as.data.table = TRUE)
+            
             col_nam <-
               setdiff(names(tbl), intersect(names(dt), names(tbl)))
             #if (Sys.info()["sysname"] == "Linux") {
             #lookup_dt(dt, tbl, check_lookup_tbl_validity = FALSE)
             #} else {
-              dt <- absorb_dt(dt, tbl)
+            dt <- absorb_dt(dt, tbl)
             #}
             #dt <- merge(dt, tbl, by = c(intersect(names(dt), names(tbl))))
-
-              dt[, sbp := my_qBCPEo(rank_sbp, mu, sigma, nu, tau, n_cpu = design_$sim_prm$n_cpu)] 
-              dt[sbp > 500, sbp := 500] #Truncate sbp predictions to avoid unrealistic values.
-              dt[, (col_nam) := NULL]
-              dt[, `:=`(rank_sbp = NULL)]
-              # Jane: do we need the 'n_cpu' argument?
-              # Jane: I realized that, the variable name for exposures in Disease_class are 'sbp_curr_xps' or 'bmi_curr_xps',
-              #       but are 'sbp' and 'bmi' here. Why?
             
-            # Generate tchol (qBCTo) ----
-            if (design_$sim_prm$logs) message("Generate tchol")
+            # Xiao: New function to get intake values based on ranks for two-part model
+            dt[, processed_meat := get_twopm_quantile(
+              p = rank_processed_meat,
+              param_dt = .SD,
+              qfun_nam = "qBCPE",
+              pos_pars = setdiff(col_nam, "xi0"), # parameters for positive distribution only
+              xi0_col = "xi0", # parameter for binary model (prob of below cut-off: yes/no)
+              cut_con = 3L), .SDcols = col_nam]
+            
+            dt[, (col_nam) := NULL]
+            dt[, rank_processed_meat := NULL]
+              
+            # Generate red meat (qBCTo, cutoff for two-part model: 3 g/day) ----
+            if (design_$sim_prm$logs) message("Generate red meat intake")
+            
             tbl <-
-              read_fst("./inputs/exposure_distributions/tc_table.fst", as.data.table = TRUE)
-
+              read_fst("./inputs/exposure_distributions/red_meat_twopart_parameter_table.fst",
+                       as.data.table = TRUE)
+            
             col_nam <-
               setdiff(names(tbl), intersect(names(dt), names(tbl)))
             #if (Sys.info()["sysname"] == "Linux") {
@@ -977,29 +965,70 @@ SynthPop <-
             #} else {
             dt <- absorb_dt(dt, tbl)
             #}
-            dt[, tchol := qBCTo(rank_tchol, mu, sigma, nu, tau)]
-            dt[tchol > 100, tchol := 100] #Truncate cholesterol predictions to avoid unrealistic values.
+            
+            dt[, red_meat := get_twopm_quantile(
+              p = rank_red_meat,
+              param_dt = .SD,
+              qfun_nam = "qBCTo",
+              pos_pars = setdiff(col_nam, "xi0"),
+              xi0_col = "xi0",
+              cut_con = 3L), .SDcols = col_nam]
+            
             dt[, (col_nam) := NULL]
-            dt[, `:=`(rank_tchol = NULL)]
-
-            # Generate BMI (BCPEo) ----
-            if (design_$sim_prm$logs) message("Generate bmi")
-
+            dt[, rank_red_meat := NULL]
+            
+            # Generate white meat (qGG, cutoff for two-part model: 12 g/day) ----
+            if (design_$sim_prm$logs) message("Generate white meat intake")
+            
             tbl <-
-              read_fst("./inputs/exposure_distributions/bmi_table.fst",
+              read_fst("./inputs/exposure_distributions/white_meat_twopart_parameter_table.fst",
                        as.data.table = TRUE)
             col_nam <-
               setdiff(names(tbl), intersect(names(dt), names(tbl)))
             #if (Sys.info()["sysname"] == "Linux") {
             #  lookup_dt(dt, tbl, check_lookup_tbl_validity = FALSE) #TODO: Lookup_dt
             #} else {
-              dt <- absorb_dt(dt, tbl)
+            dt <- absorb_dt(dt, tbl)
             #}
-            dt[, bmi := my_qBCPEo(rank_bmi, mu, sigma, nu, tau, n_cpu = design_$sim_prm$n_cpu)] ## Jane: why 'my_qBCPEo()'?
-            dt[bmi > 80, bmi := 80] #Truncate BMI predictions to avoid unrealistic values.
-            dt[, rank_bmi := NULL]
+            
+            dt[, white_meat := get_twopm_quantile(
+              p = rank_white_meat,
+              param_dt = .SD,
+              qfun_nam = "qGG",
+              pos_pars = setdiff(col_nam, "xi0"),
+              xi0_col = "xi0",
+              cut_con = 12L), .SDcols = col_nam]
+            
             dt[, (col_nam) := NULL]
-            ###################################################################################################################
+            dt[, rank_white_meat := NULL]
+            
+            # Generate fish (qBCPE, cutoff for two-part model: 5 g/day) ----
+            if (design_$sim_prm$logs) message("Generate fish intake")
+            
+            tbl <-
+              read_fst("./inputs/exposure_distributions/fish_twopart_parameter_table.fst",
+                       as.data.table = TRUE)
+            col_nam <-
+              setdiff(names(tbl), intersect(names(dt), names(tbl)))
+            #if (Sys.info()["sysname"] == "Linux") {
+            #  lookup_dt(dt, tbl, check_lookup_tbl_validity = FALSE) #TODO: Lookup_dt
+            #} else {
+            dt <- absorb_dt(dt, tbl)
+            #}
+            
+            dt[, fish := get_twopm_quantile(
+              p = rank_fish,
+              param_dt = .SD,
+              qfun_nam = "qBCPE",
+              pos_pars = setdiff(col_nam, "xi0"),
+              xi0_col = "xi0",
+              cut_con = 5L), .SDcols = col_nam]
+            
+            dt[, (col_nam) := NULL]
+            dt[, rank_fish := NULL]
+            
+            # End of exposure generation
+            if (design_$sim_prm$logs) message("All exposures successfully generated!")
 
  			      dt[, `:=` (
               pid_mrk = NULL
@@ -1007,9 +1036,10 @@ SynthPop <-
             )]
 
             xps_tolag <- c(
-              "bmi",
-              "sbp",
-              "tchol"
+              "processed_meat",
+              "red_meat",
+              "white_meat",
+              "fish"
             )
             xps_nam <-  paste0(xps_tolag, "_curr_xps")  # Jane: so here we add the '_curr_xps' to the exposure variables?
             setnames(dt, xps_tolag, xps_nam)

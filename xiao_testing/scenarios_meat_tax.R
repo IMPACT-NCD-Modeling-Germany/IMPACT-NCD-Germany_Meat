@@ -24,11 +24,7 @@
   # --> how to deal with mc?
   # Q4). Did not use new_xps but created directly delta_xps and replaced curr_xps after year 0 with curr_xps - delta_xps
   #---------------------------------------------------------------------------
-  
-  library(data.table)
-  library(fst)
-  
-  
+
   #### Scenarios for German meat-tax modelling ---------------------------------
   
   scenario_0_fn <- function(sp) {
@@ -39,7 +35,7 @@
                "fish_delta_xps") := 0]
 
     # Current annual environmental footprints
-    meat_env_tbl <- read_fst("./xiao_testing/environment_footprints_meat.fst", as.data.table = TRUE)
+    meat_env_tbl <- read_fst("./inputs/other_parameters/environment_footprints_meat.fst", as.data.table = TRUE)
     gday_to_kgyear <- 365 / 1000
     
     sp$pop[, red_meat_curr_ghg :=
@@ -109,7 +105,7 @@
     # Define tax targets and substitutes of interest
     products <- c("beef", "pork", "processed_meat", "white_meat", "fish")
     
-    tbl <- read_fst("./xiao_testing/tax_pass_through.fst", as.data.table = TRUE)
+    tbl <- read_fst("./inputs/other_parameters/tax_pass_through.fst", as.data.table = TRUE)
     pass_through <- as.numeric(tbl[mc == sp$mc_aggr, tax_pth])
     
     # VAT-induced consumer-price change
@@ -123,7 +119,7 @@
     )
     
     # Calculate demand change
-    tbl <- read_fst("./xiao_testing/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
+    tbl <- read_fst("./inputs/other_parameters/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
     
     x <- tbl[quantity %in% products & price %in% price_change_tbl$price]
     x <- price_change_tbl[x, on = "price"]
@@ -173,7 +169,7 @@
            fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
     
     # Current annual environmental footprints after consumption changes
-    meat_env_tbl <- read_fst("./xiao_testing/environment_footprints_meat.fst", as.data.table = TRUE)
+    meat_env_tbl <- read_fst("./inputs/other_parameters/environment_footprints_meat.fst", as.data.table = TRUE)
     gday_to_kgyear <- 365 / 1000
     
     sp$pop[, red_meat_curr_ghg :=
@@ -294,7 +290,7 @@
     # Define tax targets and substitutes of interest
     products <- c("beef", "pork", "processed_meat", "white_meat", "fish")
     
-    tbl <- read_fst("./xiao_testing/tax_pass_through.fst", as.data.table = TRUE)
+    tbl <- read_fst("./inputs/other_parameters/tax_pass_through.fst", as.data.table = TRUE)
     pass_through <- as.numeric(tbl[mc == sp$mc_aggr, tax_pth])
     
     # Excise tax in EUR/kg product
@@ -313,7 +309,7 @@
     )
     
     # Calculate demand change
-    tbl <- read_fst("./xiao_testing/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
+    tbl <- read_fst("./inputs/other_parameters/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
 
     x <- tbl[quantity %in% products & price %in% price_change_tbl$price]
     x <- price_change_tbl[x, on = "price"]
@@ -363,7 +359,7 @@
            fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
     
     # Current annual environmental footprints after consumption changes
-    meat_env_tbl <- read_fst("./xiao_testing/environment_footprints_meat.fst", as.data.table = TRUE)
+    meat_env_tbl <- read_fst("./inputs/other_parameters/environment_footprints_meat.fst", as.data.table = TRUE)
     gday_to_kgyear <- 365 / 1000
     
     sp$pop[, red_meat_curr_ghg :=
@@ -484,7 +480,7 @@
     # Define tax targets and substitutes of interest
     products <- c("beef", "pork", "processed_meat", "white_meat", "fish")
     
-    tbl <- read_fst("./xiao_testing/tax_pass_through.fst", as.data.table = TRUE)
+    tbl <- read_fst("./inputs/other_parameters/tax_pass_through.fst", as.data.table = TRUE)
     pass_through <- as.numeric(tbl[mc == sp$mc_aggr, tax_pth])
     
     # Excise tax in EUR/kg product
@@ -503,7 +499,7 @@
     )
     
     # Calculate demand change
-    tbl <- read_fst("./xiao_testing/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
+    tbl <- read_fst("./inputs/other_parameters/evs_meat_price_elasticity_table.fst", as.data.table = TRUE)
     
     x <- tbl[quantity %in% products & price %in% price_change_tbl$price]
     x <- price_change_tbl[x, on = "price"]
@@ -553,7 +549,7 @@
            fish_curr_xps := pmax(0, fish_curr_xps - fish_delta_xps)]
     
     # Current annual environmental footprints after consumption changes
-    meat_env_tbl <- read_fst("./xiao_testing/environment_footprints_meat.fst", as.data.table = TRUE)
+    meat_env_tbl <- read_fst("./inputs/other_parameters/environment_footprints_meat.fst", as.data.table = TRUE)
     gday_to_kgyear <- 365 / 1000
     
     sp$pop[, red_meat_curr_ghg :=

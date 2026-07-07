@@ -24,4 +24,4 @@
   evs_elasticity_tbl[, elasticity := est_mat[cbind(quantity, price)]]
   evs_elasticity_tbl[, elasticity_type := fifelse(quantity == price, "own_price", "cross_price")]
   
-  write_fst(evs_elasticity_tbl,"./xiao_testing/evs_meat_price_elasticity_table.fst", compress = 100)
+  write_fst(evs_elasticity_tbl,"./inputs/other_parameters/evs_meat_price_elasticity_table.fst", compress = 100)

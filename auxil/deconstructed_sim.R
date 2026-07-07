@@ -1,6 +1,6 @@
 
 source("./global.R")
-design <- Design$new("./inputs/sim_design.yaml")
+design <- Design$new("./inputs/sim_design_meat_test.yaml")
 # RR ----
 # Create a named list of Exposure objects for the files in ./inputs/RR
 fl <- list.files(path = "./inputs/RR", pattern = ".csvy$", full.names = TRUE)
@@ -51,14 +51,7 @@ mk_scenario_init2 <- function(scenario_name, diseases_, sp, design_) {
 #TODO include informative error to check whether exposure table is matching data
 sp  <- SynthPop$new(1L, design)
 
-# Jane Aug.2025
-#library(fst)
-#sp <- read_fst("/home/inputs/synthpop/synthpop_e30e3a513f36aae27579edb28ffdd741_1.fst")
 
-# Remove col1 and col2
-#is.data.table(sp)
-#sp <- as.data.table(sp)
-#sp[, c("rankstat_sbp", "rankstat_tchol") := NULL]
 
 # lapply(diseases, function(x) x$harmonise_epi_tables(sp))
 # lapply(diseases, function(x) {
@@ -119,12 +112,12 @@ sp  <- SynthPop$new(1L, design)
  diseases$stroke$set_dgns_prb(sp, design)
  diseases$stroke$set_mrtl_prb(sp, design)
 # 
- diseases$obesity$gen_parf(sp, design)
- diseases$obesity$set_init_prvl(sp, design)
- diseases$obesity$set_rr(sp, design)
- diseases$obesity$set_incd_prb(sp, design)
- diseases$obesity$set_dgns_prb(sp, design)
- diseases$obesity$set_mrtl_prb(sp, design)
+ # diseases$obesity$gen_parf(sp, design)
+ # diseases$obesity$set_init_prvl(sp, design)
+ # diseases$obesity$set_rr(sp, design)
+ # diseases$obesity$set_incd_prb(sp, design)
+ # diseases$obesity$set_dgns_prb(sp, design)
+ # diseases$obesity$set_mrtl_prb(sp, design)
 # 
 # #diseases$nonmodelled$harmonise_epi_tables(sp)
  diseases$nonmodelled$gen_parf(sp, design)

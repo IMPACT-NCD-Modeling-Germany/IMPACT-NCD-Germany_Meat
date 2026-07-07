@@ -13,4 +13,5 @@
 - data.table
 - gamlss # only necessary when fitting the models
 - mc2d # only necessary for generating fixed_mc
+- future.apply
 
