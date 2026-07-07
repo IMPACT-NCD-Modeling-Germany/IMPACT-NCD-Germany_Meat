@@ -357,7 +357,7 @@ Simulation <-
         if ("stroke_risk_10y" %in% type) file_pth <- private$output_dir("summaries/stroke_10y_scaled_up.csv.gz") else
         if ("chd_risk_10y" %in% type) file_pth <- private$output_dir("summaries/chd_10y_scaled_up.csv.gz") else
         if ("t2dm_risk_10y" %in% type) file_pth <- private$output_dir("summaries/t2dm_10y_scaled_up.csv.gz") else
-        if("env" %in% type) file_pth <- private$$output_dir("summaries/env_scaled_up.csv.gz")
+        if("env" %in% type) file_pth <- private$output_dir("summaries/env_scaled_up.csv.gz")
 
         if (file.exists(file_pth)) {
           tt <- unique(fread(file_pth, select = "mc")$mc)
