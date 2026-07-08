@@ -1,7 +1,7 @@
 analysis_name: Meat
 iteration_n: 1
 iteration_n_final: 2
-clusternumber: 10 # explicit parallelisation
+clusternumber: 5 # explicit parallelisation
 clusternumber_export: 2 # NEW: number of clusters for export_summaries
 n_cpus: 1 # implicit parallelisation
 logs: yes

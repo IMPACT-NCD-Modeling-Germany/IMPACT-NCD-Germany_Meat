@@ -1400,7 +1400,54 @@ Simulation <-
 
          if (self$design$sim_prm$logs) message("Exporting exposures and changes...")
 
-          setnames(lc, c("bmi_delta", "sbp_delta", "tchol_delta"), c("bmi_delta_xps", "sbp_delta_xps", "tchol_delta_xps"))
+          setnames(lc, c("red_meat_delta_ghg",
+                         "processed_meat_delta_ghg",
+                         "white_meat_delta_ghg",
+                         "fish_delta_ghg",
+                         "red_meat_delta_water",
+                         "processed_meat_delta_water",
+                         "white_meat_delta_water",
+                         "fish_delta_water",
+                         "red_meat_delta_land",
+                         "processed_meat_delta_land",
+                         "white_meat_delta_land",
+                         "fish_delta_land",
+                         "red_meat_curr_ghg",
+                         "processed_meat_curr_ghg",
+                         "white_meat_curr_ghg",
+                         "fish_curr_ghg",
+                         "red_meat_curr_water",
+                         "processed_meat_curr_water",
+                         "white_meat_curr_water",
+                         "fish_curr_water",
+                         "red_meat_curr_land",
+                         "processed_meat_curr_land",
+                         "white_meat_curr_land",
+                         "fish_curr_land"),
+                   c("red_meat_delta_ghg_xps",
+                     "processed_meat_delta_ghg_xps",
+                     "white_meat_delta_ghg_xps",
+                     "fish_delta_ghg_xps",
+                     "red_meat_delta_water_xps",
+                     "processed_meat_delta_water_xps",
+                     "white_meat_delta_water_xps",
+                     "fish_delta_water_xps",
+                     "red_meat_delta_land_xps",
+                     "processed_meat_delta_land_xps",
+                     "white_meat_delta_land_xps",
+                     "fish_delta_land_xps",
+                     "red_meat_curr_ghg_xps",
+                     "processed_meat_curr_ghg_xps",
+                     "white_meat_curr_ghg_xps",
+                     "fish_curr_ghg_xps",
+                     "red_meat_curr_water_xps",
+                     "processed_meat_curr_water_xps",
+                     "white_meat_curr_water_xps",
+                     "fish_curr_water_xps",
+                     "red_meat_curr_land_xps",
+                     "processed_meat_curr_land_xps",
+                     "white_meat_curr_land_xps",
+                     "fish_curr_land_xps"))
 
 
           fwrite_safe(lc[, lapply(.SD, weighted.mean, wt),
@@ -1433,8 +1480,8 @@ Simulation <-
         }
         
 
-        if("cea" %in% type){                                                     # Taking lifecourse as input in this script
-          #
+        if("cea" %in% type){                  
+          
           if (self$design$sim_prm$logs) message("Exporting health economics...")
 
           ## Health Economics ##
@@ -1443,7 +1490,7 @@ Simulation <-
 
           mc_ <- as.integer(unique(lc$mc))
 
-          cea_strata <- c("scenario", "uptake_group", "sex", "agegrp", "year")
+          cea_strata <- c("scenario", "sex", "agegrp", "year")
 
           # Load healthcare cost data #
 
@@ -1479,52 +1526,6 @@ Simulation <-
             from = ro$from,
             to = ro$to
           )
-
-          # Load treatment cost data #
-          cost_GLP <- read_fst("./inputs/other_parameters/GLP_treatment_costs.fst", as.data.table = TRUE)
-          
-          # Load price trajectory file #
-          price_index_GLP <- read_fst("./inputs/other_parameters/GLP_price_traj_1.fst", as.data.table = TRUE)
-          # price_index_GLP <- read_fst("./inputs/other_parameters/GLP_price_traj_2.fst", as.data.table = TRUE)
-          # price_index_GLP <- read_fst("./inputs/other_parameters/GLP_price_traj_3.fst", as.data.table = TRUE)
-          # price_index_GLP <- read_fst("./inputs/other_parameters/GLP_price_traj_4.fst", as.data.table = TRUE)
-          
-          # Setup lifecourse #
-          
-          lc[, trtm_year := {
-            first_trt_year <- anchor_year
-            
-            fifelse(
-              year < first_trt_year,
-              NA_real_,
-              trtm_theo
-            )
-          }, by = pid]
-          
-          ## Jane: For treatment costs, I need to merge the lc & cost_data via: scenario, uptake_group, trtm_year
-          ##       Also need to merge the lc & price trajectory via: year
-          
-          absorb_dt(lc, price_index_GLP)
-          absorb_dt(lc, cost_GLP)
-          
-          lc[, `:=`(
-            
-            GLP_cost = fifelse(is.na(GLP_cost), 0, GLP_cost),
-            
-            trtm_year = NULL
-            
-          )][, treat_cost := {
-            
-            fifelse(
-              scenario == "sc1" | scenario == "sc2", (GLP_cost * price_traj_sm),
-              fifelse(
-                scenario == "sc3" | scenario == "sc4", (GLP_cost * price_traj_tz),
-                0
-              )
-            )
-            
-          }]
-          
 
           lc[, `:=`(t2dm_stat = fifelse(t2dm_prvl > 1, 1, 0),
                     chd_stat = fifelse(chd_prvl == 1, 1,
@@ -1603,6 +1604,9 @@ Simulation <-
             row <- seq(1, length(cols), 1)
 
             lc[, (colnames(cov_long)[cols]) := as.data.table(t(cov_long[cols]))]
+            
+            #TODO CORRECT BMI ESTIMATION!
+            lc[, bmi_curr_xps := 25]
 
             lc[, (paste0("tmp", i)) := Intercept * get(paste0("cov", row[1], "_", j)) + age * get(paste0("cov", row[2], "_", j)) +
                  sex_num * get(paste0("cov", row[3], "_", j)) + bmi_curr_xps * get(paste0("cov", row[4], "_", j)) +
@@ -1659,7 +1663,6 @@ Simulation <-
           # Setup results object #
 
           cea <- CJ(scenario = unique(lc$scenario),
-                    uptake_group = unique(lc$uptake_group),
                     sex = unique(lc$sex),
                     agegrp = unique(lc$agegrp),
                     year = unique(lc$year))
@@ -1692,25 +1695,6 @@ Simulation <-
 
           absorb_dt(cea, qalys_esp)
 
-          ## Jane April 2026, here I guess I will add:
-          
-          # Calculate Treatment Costs #
-
-          if (self$design$sim_prm$logs) message("Calculating treatment costs...")
-          
-          treat_costs_scl <- lc[, lapply(.SD, function(x){
-            
-            x <- sum(x * wt * dcv, na.rm = TRUE) ## Jane 16 Sep, add na.rm to all sum()
-            
-            return(x)
-            
-          }), .SDcols = c("treat_cost"),
-          keyby = c(cea_strata)]
-          
-          setnames(treat_costs_scl, c("treat_cost"), c("treat_cost_scl"))
-          
-          absorb_dt(cea, treat_costs_scl)
-          
           # Calculate Healthcare Costs #
 
           if (self$design$sim_prm$logs) message("Calculating healthcare costs...")
@@ -1814,7 +1798,6 @@ Simulation <-
               cost_slfmgt_t2dm_esp + cost_time_t2dm_esp + cost_time_esp,
             tot_dir_costs_scl = cost_scl + cost_t2dm_scl + cost_chd_scl + cost_stroke_scl,
             tot_dir_costs_esp = cost_esp + cost_t2dm_esp + cost_chd_esp + cost_stroke_esp,
-            tot_dir_costs_w_treat_scl = cost_scl + cost_t2dm_scl + cost_chd_scl + cost_stroke_scl + treat_cost_scl,
             tot_costs_scl = cost_scl + cost_t2dm_scl + cost_chd_scl + cost_stroke_scl +
               cost_death_scl + cost_rtr_t2dm_scl + cost_rtr_stroke_scl +
               cost_scklv_t2dm_scl + cost_scklv_stroke_scl +
@@ -1844,13 +1827,13 @@ Simulation <-
             , lapply(.SD, sum),
             .SDcols = c(grep("cost", names(cea_agg), value = TRUE),
                         "qalys_esp", "qalys_scl"),
-            by = setdiff(cea_strata, "uptake_group")
+            by = cea_strata
           ]
 
           
           sc_map <- data.table(
-            scenario = c("sc1","sc2","sc3","sc4"),
-            baseline = c(rep("sc0", 4))
+            scenario = c("sc1","sc2","sc3"),
+            baseline = c(rep("sc0", 3))
           )
           
 

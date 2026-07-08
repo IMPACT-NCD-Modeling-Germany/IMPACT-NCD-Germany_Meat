@@ -8,32 +8,25 @@ source("./global.R")
 # source("./auxil/scenarios_GLP_uncertain.R") # Done: split up into different files
 
 # Initiate .Random.seed for safety
-runif(10)
+runif(1)
 set.seed(1337)
 
-# New runs?
-new_runs <- TRUE
+# New runs? New exports?
+new_runs <- FALSE
 new_export <- TRUE
 
 if(new_runs){
   
   # Create batches for batched simulation
-  batch_size <- 2
-  iterations <- 6
-  first_iteration <- 1
+  batch_size <- 4
+  iterations <- 100
+  first_iteration <- 95
   batches <- split(seq(first_iteration, iterations + first_iteration - 1),
                    f = findInterval(seq(first_iteration, iterations + first_iteration - 1),
                                     vec = seq(first_iteration, iterations + first_iteration - 1, batch_size)))
 }
 
-###################################################################################################
-#-------------------------------------------------------------------------------------------------#
-#----------------------- Step 1: generate the lifecourse with only sc0 ---------------------------#
-#-------------------------------------------------------------------------------------------------#
-###################################################################################################
-
 analysis_name <- "Meat_Tax" 
-### create a folder to store all the output of this analysis
 
 IMPACTncd <- Simulation$new("./inputs/sim_design_meat_test.yaml", analysis_name)
 
@@ -70,6 +63,6 @@ if(new_runs){
 }
 
 if(new_export){
-  IMPACTncd$export_summaries(multicore = TRUE) 
+  IMPACTncd$export_summaries(multicore = TRUE, type = c("env")) 
 } 
 
